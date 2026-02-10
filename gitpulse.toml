@@ -1,0 +1,7 @@
+[alias]
+# Example: Unify GitHub noreply email
+"123456+username@users.noreply.github.com" = "Your Name"
+
+# For sample_repo
+"alice.personal@gmail.com" = "Alice"
+"Bob_Work" = "Bob"

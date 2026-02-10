@@ -8,4 +8,5 @@ pub struct CommitStats {
     pub date: DateTime<Utc>,
     pub added: usize,
     pub deleted: usize,
+    pub email: String,
 }

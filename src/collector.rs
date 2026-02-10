@@ -25,6 +25,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
 
         let author = commit.author();
         let author_name = author.name().unwrap_or("Unknown").to_string();
+        let author_email = author.email().unwrap_or("").to_string();
         
         let time = commit.time();
         let date: DateTime<Utc> = Utc.timestamp_opt(time.seconds(), 0).unwrap();
@@ -56,6 +57,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             date,
             added,
             deleted,
+            email: author_email,
         });
     }
 

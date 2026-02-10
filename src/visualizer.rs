@@ -22,7 +22,16 @@ pub struct AggregatedStats {
 pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> Result<()> {
     let file = File::open(input_path).context("Failed to open input file")?;
     let reader = BufReader::new(file);
-    let commits: Vec<CommitStats> = serde_json::from_reader(reader).context("Failed to parse JSON")?;
+    let mut commits: Vec<CommitStats> = serde_json::from_reader(reader).context("Failed to parse JSON")?;
+
+    // Load config from current directory or repository root (basic assumption: current dir)
+    let config_path = Path::new("gitpulse.toml");
+    let config = crate::config::Config::load(config_path).unwrap_or_default();
+
+    // Resize (Normalize) authors in commits
+    for commit in &mut commits {
+        commit.author = normalize_author(&commit.author, &commit.email, &config);
+    }
 
     // Aggregate data by day and user: (added, deleted, commit_count)
     let mut aggregation: HashMap<(String, String), (usize, usize, usize)> = HashMap::new();
@@ -59,6 +68,31 @@ pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> R
         "html" => export_html(&commits, output_path),
         _ => anyhow::bail!("Unsupported format: {}", format),
     }
+}
+
+fn normalize_author(name: &str, email: &str, config: &crate::config::Config) -> String {
+    // 1. Check alias by email
+    if let Some(alias) = config.alias.get(email) {
+        return alias.clone();
+    }
+
+    // 2. Check alias by name
+    if let Some(alias) = config.alias.get(name) {
+        return alias.clone();
+    }
+
+    // 3. GitHub noreply auto-merge
+    // Format: 12345+username@users.noreply.github.com
+    if email.ends_with("@users.noreply.github.com") {
+        if let Some(local_part) = email.split('@').next() {
+            if let Some(plus_pos) = local_part.find('+') {
+                return local_part[plus_pos + 1..].to_string();
+            }
+        }
+    }
+
+    // Default: return original name
+    name.to_string()
 }
 
 fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {

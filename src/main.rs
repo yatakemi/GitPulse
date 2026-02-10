@@ -1,4 +1,5 @@
 mod collector;
+mod config;
 mod html_template;
 mod model;
 mod visualizer;
