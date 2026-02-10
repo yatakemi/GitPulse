@@ -56,6 +56,23 @@ pub const HTML_TEMPLATE: &str = r#"
             content: ''; position: absolute; bottom: 100%; left: 50%; margin-left: -5px; margin-bottom: 3px;
             border-width: 5px; border-style: solid; border-color: #34495e transparent transparent transparent;
         }
+
+        /* Insight Cards */
+        .insights-section { margin-bottom: 25px; }
+        .insights-section h2 { font-size: 18px; color: #2c3e50; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; }
+        .insight-card {
+            padding: 16px 20px; border-radius: 10px; display: flex; gap: 12px; align-items: flex-start;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid;
+        }
+        .insight-card.warning { background: #fef9e7; border-color: #f39c12; }
+        .insight-card.info { background: #eaf2f8; border-color: #3498db; }
+        .insight-card.positive { background: #eafaf1; border-color: #27ae60; }
+        .insight-icon { font-size: 24px; flex-shrink: 0; line-height: 1; }
+        .insight-body { flex: 1; }
+        .insight-title { font-weight: 600; font-size: 14px; color: #2c3e50; margin-bottom: 4px; }
+        .insight-desc { font-size: 13px; color: #555; line-height: 1.5; }
+        .insight-value { font-weight: 700; color: #2c3e50; }
         
     </style>
 </head>
@@ -127,6 +144,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 <h3 data-i18n="sum_avg">Avg / Day</h3>
                 <div class="value" id="avgPerDayValue">-</div>
             </div>
+        </div>
+
+        <div class="insights-section" id="insightsContainer">
+            <h2>💡 <span data-i18n="insights_title">Insights</span></h2>
+            <div class="insights-grid" id="insightsGrid"></div>
         </div>
 
         <div class="charts-grid">
@@ -235,7 +257,26 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 label_churn_rate: "Churn Rate (%)",
                 label_avg_duration: "Avg Work Duration (Hours)",
                 diff_new: "New Activity",
-                diff_prev: "vs prev"
+                diff_prev: "vs prev",
+                insights_title: "Insights",
+                insight_burnout_title: "Burnout Risk",
+                insight_burnout_desc: "Average work span in the last 7 days is {value} hours. Long activity spans may indicate overwork.",
+                insight_unstable_title: "Code Instability",
+                insight_unstable_desc: "Churn Rate is {value}%. High churn suggests frequent rework or unstable code.",
+                insight_busfactor_title: "Bus Factor Risk",
+                insight_busfactor_desc: "{name} accounts for {value}% of commits. High reliance on a single contributor is risky.",
+                insight_largecommit_title: "Large Commit Pattern",
+                insight_largecommit_desc: "{value}% of commits are XL (500+ lines). Consider breaking them into smaller, reviewable units.",
+                insight_hotspot_title: "Hotspot Concentration",
+                insight_hotspot_desc: "Top 3 files account for {value}% of all file changes. These may need refactoring.",
+                insight_weekend_title: "Weekend Work",
+                insight_weekend_desc: "{value}% of commits are on weekends. This may indicate crunch time or unsustainable pace.",
+                insight_stable_title: "Stable Pace",
+                insight_stable_desc: "Active on {value}% of days with low churn. The team maintains a healthy, consistent rhythm.",
+                insight_smallcommit_title: "Good Commit Habits",
+                insight_smallcommit_desc: "{value}% of commits are XS/S size. Atomic commits make reviews easier and reduce risk.",
+                insight_latenight_title: "Late Night Activity",
+                insight_latenight_desc: "{value}% of commits are between 10PM-5AM. This may affect well-being and code quality."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -280,7 +321,26 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 label_churn_rate: "チャーン率 (%)",
                 label_avg_duration: "平均稼働時間 (時間)",
                 diff_new: "新規",
-                diff_prev: "前回比"
+                diff_prev: "前回比",
+                insights_title: "インサイト",
+                insight_burnout_title: "🔥 バーンアウトリスク",
+                insight_burnout_desc: "直近7日間の平均活動スパンが{value}時間です。長時間の活動傾向が見られます。",
+                insight_unstable_title: "📉 コード不安定",
+                insight_unstable_desc: "チャーン率が{value}%と高い水準です。手戻りやリファクタリングが頻発している可能性があります。",
+                insight_busfactor_title: "🚌 バス係数リスク",
+                insight_busfactor_desc: "{name}がコミットの{value}%を占めています。特定メンバーへの依存度が高い状態です。",
+                insight_largecommit_title: "📦 巨大コミット傾向",
+                insight_largecommit_desc: "コミットの{value}%がXL（500行以上）です。レビューしやすい小さな単位に分割することを推奨します。",
+                insight_hotspot_title: "📁 ホットスポット集中",
+                insight_hotspot_desc: "上位3ファイルがファイル変更の{value}%を占めています。リファクタリングの検討を推奨します。",
+                insight_weekend_title: "📅 週末労働",
+                insight_weekend_desc: "コミットの{value}%が週末に行われています。デスマーチや持続不可能なペースを示唆する可能性があります。",
+                insight_stable_title: "✅ 安定したペース",
+                insight_stable_desc: "日数の{value}%で活動があり、チャーン率も低い水準です。健全で安定したリズムを維持しています。",
+                insight_smallcommit_title: "✅ 良好なコミット習慣",
+                insight_smallcommit_desc: "コミットの{value}%がXS/Sサイズです。アトミックなコミットはレビューを容易にし、リスクを低減します。",
+                insight_latenight_title: "🌙 深夜作業",
+                insight_latenight_desc: "コミットの{value}%が22時〜5時の間に行われています。健康やコード品質への影響が懸念されます。"
             }
         };
 
@@ -400,9 +460,141 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             updateHotspotsChart(filteredData);
             updateWorkDurationChart(filteredData);
             updateHealthTrendChart(filteredData, startDate, endDate);
+            generateInsights(filteredData, startDate, endDate);
         }
 
         // ... (existing updateSummary, updateTimelineChart, etc.) ...
+
+        function generateInsights(filteredData, startDate, endDate) {
+            const container = document.getElementById('insightsGrid');
+            container.innerHTML = '';
+            const insights = [];
+            if (filteredData.length === 0) return;
+
+            // Helper
+            function addInsight(severity, icon, titleKey, descKey, values) {
+                let desc = t(descKey);
+                Object.entries(values).forEach(([k, v]) => {
+                    desc = desc.replace(`{${k}}`, v);
+                });
+                insights.push({ severity, icon, title: t(titleKey), desc });
+            }
+
+            // --- Rule 1: Burnout Risk (avg work span > 8h in last 7 days) ---
+            const recentDates = [...new Set(filteredData.map(d => d.dateStr))].sort().slice(-7);
+            const userDailySpans = new Map();
+            filteredData.filter(d => recentDates.includes(d.dateStr)).forEach(d => {
+                const key = `${d.dateStr}-${d.author}`;
+                if (!userDailySpans.has(key)) userDailySpans.set(key, { min: 24, max: 0, count: 0 });
+                const s = userDailySpans.get(key);
+                if (d.hour < s.min) s.min = d.hour;
+                if (d.hour > s.max) s.max = d.hour;
+                s.count++;
+            });
+            let totalSpan = 0, spanCount = 0;
+            userDailySpans.forEach(s => {
+                if (s.count > 1) { totalSpan += (s.max - s.min); spanCount++; }
+            });
+            const avgSpan = spanCount > 0 ? totalSpan / spanCount : 0;
+            if (avgSpan > 8) {
+                addInsight('warning', '🔥', 'insight_burnout_title', 'insight_burnout_desc', { value: avgSpan.toFixed(1) });
+            }
+
+            // --- Rule 2: Code Instability (Churn Rate > 50%) ---
+            const totalChanges = filteredData.reduce((a, d) => a + d.total_changes, 0);
+            const totalChurn = filteredData.reduce((a, d) => a + d.churn, 0);
+            const churnRate = totalChanges > 0 ? (totalChurn / totalChanges) * 100 : 0;
+            if (churnRate > 50) {
+                addInsight('warning', '📉', 'insight_unstable_title', 'insight_unstable_desc', { value: churnRate.toFixed(1) });
+            }
+
+            // --- Rule 3: Bus Factor (top contributor > 70%) ---
+            const userCommits = {};
+            filteredData.forEach(d => { userCommits[d.author] = (userCommits[d.author] || 0) + 1; });
+            const totalCommits = filteredData.length;
+            const sortedUsers = Object.entries(userCommits).sort((a, b) => b[1] - a[1]);
+            if (sortedUsers.length > 0) {
+                const topShare = (sortedUsers[0][1] / totalCommits) * 100;
+                if (topShare > 70) {
+                    addInsight('warning', '🚌', 'insight_busfactor_title', 'insight_busfactor_desc', { name: sortedUsers[0][0], value: topShare.toFixed(0) });
+                }
+            }
+
+            // --- Rule 4: Large Commits (XL > 20%) ---
+            const xlCount = filteredData.filter(d => d.total_changes > 500).length;
+            const xlPct = totalCommits > 0 ? (xlCount / totalCommits) * 100 : 0;
+            if (xlPct > 20) {
+                addInsight('info', '📦', 'insight_largecommit_title', 'insight_largecommit_desc', { value: xlPct.toFixed(0) });
+            }
+
+            // --- Rule 5: Hotspot Concentration (Top 3 files > 30%) ---
+            const fileCounts = {};
+            filteredData.forEach(d => {
+                (d.files || []).forEach(fIdx => {
+                    const fName = filePaths[fIdx] || fIdx;
+                    fileCounts[fName] = (fileCounts[fName] || 0) + 1;
+                });
+            });
+            const sortedFiles = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]);
+            const totalFileMods = Object.values(fileCounts).reduce((a, b) => a + b, 0);
+            if (sortedFiles.length >= 3 && totalFileMods > 0) {
+                const top3Mods = sortedFiles.slice(0, 3).reduce((a, f) => a + f[1], 0);
+                const top3Pct = (top3Mods / totalFileMods) * 100;
+                if (top3Pct > 30) {
+                    addInsight('info', '📁', 'insight_hotspot_title', 'insight_hotspot_desc', { value: top3Pct.toFixed(0) });
+                }
+            }
+
+            // --- Rule 6: Weekend Work (> 15%) ---
+            const weekendCount = filteredData.filter(d => d.dayOfWeek === 0 || d.dayOfWeek === 6).length;
+            const weekendPct = totalCommits > 0 ? (weekendCount / totalCommits) * 100 : 0;
+            if (weekendPct > 15) {
+                addInsight('warning', '📅', 'insight_weekend_title', 'insight_weekend_desc', { value: weekendPct.toFixed(0) });
+            }
+
+            // --- Rule 7: Late Night Activity (22-5h > 20%) ---
+            const lateCount = filteredData.filter(d => d.hour >= 22 || d.hour < 5).length;
+            const latePct = totalCommits > 0 ? (lateCount / totalCommits) * 100 : 0;
+            if (latePct > 20) {
+                addInsight('warning', '🌙', 'insight_latenight_title', 'insight_latenight_desc', { value: latePct.toFixed(0) });
+            }
+
+            // --- Rule 8: Stable Pace (active > 60% of days & churn < 30%) ---
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+            const activeDays = new Set(filteredData.map(d => d.dateStr)).size;
+            const activePct = (activeDays / totalDays) * 100;
+            if (activePct > 60 && churnRate < 30) {
+                addInsight('positive', '✅', 'insight_stable_title', 'insight_stable_desc', { value: activePct.toFixed(0) });
+            }
+
+            // --- Rule 9: Small Commit Habits (XS+S > 70%) ---
+            const smallCount = filteredData.filter(d => d.total_changes <= 50).length;
+            const smallPct = totalCommits > 0 ? (smallCount / totalCommits) * 100 : 0;
+            if (smallPct > 70) {
+                addInsight('positive', '✅', 'insight_smallcommit_title', 'insight_smallcommit_desc', { value: smallPct.toFixed(0) });
+            }
+
+            // Render
+            if (insights.length === 0) {
+                document.getElementById('insightsContainer').style.display = 'none';
+            } else {
+                document.getElementById('insightsContainer').style.display = '';
+                insights.forEach(ins => {
+                    const card = document.createElement('div');
+                    card.className = `insight-card ${ins.severity}`;
+                    card.innerHTML = `
+                        <div class="insight-icon">${ins.icon}</div>
+                        <div class="insight-body">
+                            <div class="insight-title">${ins.title}</div>
+                            <div class="insight-desc">${ins.desc}</div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        }
 
         function updateHealthTrendChart(filteredData, startDate, endDate) {
             // Generate dense date list
