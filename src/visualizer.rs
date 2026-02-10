@@ -16,6 +16,7 @@ pub struct AggregatedStats {
     pub added: usize,
     pub deleted: usize,
     pub total_changes: usize,
+    pub commit_count: usize,
 }
 
 pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> Result<()> {
@@ -23,32 +24,30 @@ pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> R
     let reader = BufReader::new(file);
     let commits: Vec<CommitStats> = serde_json::from_reader(reader).context("Failed to parse JSON")?;
 
-    // Aggregate data by week and user
-    let mut aggregation: HashMap<(String, String), (usize, usize)> = HashMap::new();
+    // Aggregate data by day and user: (added, deleted, commit_count)
+    let mut aggregation: HashMap<(String, String), (usize, usize, usize)> = HashMap::new();
 
-    for commit in commits {
-        // Group by week (start of the week)
+    for commit in &commits {
+        // Group by day
         let date = commit.date.date_naive();
-        let week_str = date.format("%Y-%W").to_string(); // e.g., 2025-06
-        // Or simpler: just use the date. But for productivity, weekly is often better. 
-        // Let's use daily for now as per plan "Daily/Weekly", but implementation plan said "Group by User and Time".
-        // Let's stick to Daily for higher resolution in the graph, users can zoom out.
         let day_str = date.format("%Y-%m-%d").to_string();
 
-        let key = (day_str, commit.author);
-        let entry = aggregation.entry(key).or_insert((0, 0));
+        let key = (day_str, commit.author.clone());
+        let entry = aggregation.entry(key).or_insert((0, 0, 0));
         entry.0 += commit.added;
         entry.1 += commit.deleted;
+        entry.2 += 1; // Increment commit count
     }
 
     let mut stats_list: Vec<AggregatedStats> = aggregation
         .into_iter()
-        .map(|((date, user), (added, deleted))| AggregatedStats {
+        .map(|((date, user), (added, deleted, commit_count))| AggregatedStats {
             date,
             user,
             added,
             deleted,
             total_changes: added + deleted,
+            commit_count,
         })
         .collect();
 
@@ -57,7 +56,7 @@ pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> R
 
     match format {
         "csv" => export_csv(&stats_list, output_path),
-        "html" => export_html(&stats_list, output_path),
+        "html" => export_html(&commits, output_path),
         _ => anyhow::bail!("Unsupported format: {}", format),
     }
 }
@@ -72,17 +71,13 @@ fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn export_html(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
-    let mut tera = Tera::default();
-    tera.add_raw_template("report.html", HTML_TEMPLATE)?;
-
+fn export_html(stats: &[CommitStats], output_path: &Path) -> Result<()> {
     let mut context = TeraContext::new();
     context.insert("data", stats);
-
-    let rendered = tera.render("report.html", &context)?;
+    let rendered = Tera::one_off(crate::html_template::HTML_TEMPLATE, &context, false)
+        .context("Failed to render HTML template")?;
     let mut file = File::create(output_path)?;
     file.write_all(rendered.as_bytes())?;
-    
     println!("Exported HTML to {:?}", output_path);
     Ok(())
 }
