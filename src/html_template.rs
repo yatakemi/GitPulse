@@ -209,6 +209,27 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 </div>
                 <canvas id="healthTrendChart"></canvas>
             </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_ownership">Code Ownership (Top 15 Files)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_ownership" data-tooltip="Shows who contributes to which files. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience.">i</span>
+                </div>
+                <canvas id="ownershipChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_leadtime">Branch Lead Time</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_leadtime" data-tooltip="Time span of merged branches (from first commit to merge). Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity.">i</span>
+                </div>
+                <canvas id="leadTimeChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_ctxswitch">Context Switching (Daily Directory Diversity)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_ctxswitch" data-tooltip="Number of distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work. Lower is generally better.">i</span>
+                </div>
+                <canvas id="ctxSwitchChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -276,7 +297,24 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 insight_smallcommit_title: "Good Commit Habits",
                 insight_smallcommit_desc: "{value}% of commits are XS/S size. Atomic commits make reviews easier and reduce risk.",
                 insight_latenight_title: "Late Night Activity",
-                insight_latenight_desc: "{value}% of commits are between 10PM-5AM. This may affect well-being and code quality."
+                insight_latenight_desc: "{value}% of commits are between 10PM-5AM. This may affect well-being and code quality.",
+                chart_ownership: "Code Ownership (Top 15 Files)",
+                tooltip_ownership: "Shows who contributes to which files. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience.",
+                label_commits: "commits",
+                insight_isolated_title: "Isolated Files",
+                insight_isolated_desc: "{value} file(s) are only touched by one person. If that person is unavailable, no one else has context.",
+                chart_leadtime: "Branch Lead Time",
+                tooltip_leadtime: "Time span of merged branches (from first commit to merge). Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity.",
+                label_days: "days",
+                label_branch: "Branch",
+                label_leadtime_days: "Lead Time (Days)",
+                chart_ctxswitch: "Context Switching (Daily Directory Diversity)",
+                tooltip_ctxswitch: "Number of distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work. Lower is generally better.",
+                label_avg_dirs: "Avg Directories / Day",
+                insight_ctxswitch_title: "Frequent Context Switching",
+                insight_ctxswitch_desc: "Average {value} directories touched per day. Frequent switching between areas reduces deep work and focus.",
+                insight_longlived_title: "Long-lived Branches",
+                insight_longlived_desc: "{value} branch(es) lived longer than 7 days. Long-lived branches increase merge complexity and risk."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -340,7 +378,24 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 insight_smallcommit_title: "✅ 良好なコミット習慣",
                 insight_smallcommit_desc: "コミットの{value}%がXS/Sサイズです。アトミックなコミットはレビューを容易にし、リスクを低減します。",
                 insight_latenight_title: "🌙 深夜作業",
-                insight_latenight_desc: "コミットの{value}%が22時〜5時の間に行われています。健康やコード品質への影響が懸念されます。"
+                insight_latenight_desc: "コミットの{value}%が22時〜5時の間に行われています。健康やコード品質への影響が懸念されます。",
+                chart_ownership: "コードオーナーシップ (Top 15ファイル)",
+                tooltip_ownership: "誰がどのファイルに貢献しているかを示します。1人だけが触っているファイルは『バス係数』リスクです。バランスの良いオーナーシップがチームの回復力を高めます。",
+                label_commits: "コミット",
+                insight_isolated_title: "📋 孤立ファイル",
+                insight_isolated_desc: "{value}個のファイルが1人のみによって変更されています。その人が不在の場合、誰も文脈を持ちません。",
+                chart_leadtime: "ブランチリードタイム",
+                tooltip_leadtime: "マージされたブランチの寿命（最初のコミット〜マージ）。短いリードタイムは迅速なデリバリーを示します。長命ブランチはマージの複雑さを増します。",
+                label_days: "日",
+                label_branch: "ブランチ",
+                label_leadtime_days: "リードタイム (日)",
+                chart_ctxswitch: "コンテキストスイッチ (日別ディレクトリ多様性)",
+                tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチを示し、深い集中を妨げます。低いほうが一般的に良好です。",
+                label_avg_dirs: "平均ディレクトリ / 日",
+                insight_ctxswitch_title: "🔀 頻繁なコンテキストスイッチ",
+                insight_ctxswitch_desc: "1日平均{value}ディレクトリを跨いで作業しています。頻繁な切り替えは集中力と深い作業を妨げます。",
+                insight_longlived_title: "🔄 長命ブランチ",
+                insight_longlived_desc: "{value}個のブランチが7日以上存続しています。長命ブランチはマージの複雑さとリスクを増大させます。"
             }
         };
 
@@ -408,8 +463,11 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
         const hotCtx = document.getElementById('hotspotsChart').getContext('2d');
         const durCtx = document.getElementById('workDurationChart').getContext('2d');
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
+        const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
+        const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
+        const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
 
-        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart;
+        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, ctxChart;
 
         // ... (existing helper vars and functions) ...
         const allUsers = [...new Set(data.map(d => d.author))];
@@ -460,6 +518,9 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             updateHotspotsChart(filteredData);
             updateWorkDurationChart(filteredData);
             updateHealthTrendChart(filteredData, startDate, endDate);
+            updateOwnershipChart(filteredData);
+            updateLeadTimeChart(filteredData);
+            updateContextSwitchChart(filteredData);
             generateInsights(filteredData, startDate, endDate);
         }
 
@@ -576,6 +637,58 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 addInsight('positive', '✅', 'insight_smallcommit_title', 'insight_smallcommit_desc', { value: smallPct.toFixed(0) });
             }
 
+            // --- Rule 10: Isolated Files (files with only 1 contributor) ---
+            const fileOwners = {};
+            filteredData.forEach(d => {
+                (d.files || []).forEach(fIdx => {
+                    const fName = filePaths[fIdx] || fIdx;
+                    if (!fileOwners[fName]) fileOwners[fName] = new Set();
+                    fileOwners[fName].add(d.author);
+                });
+            });
+            const isolatedCount = Object.values(fileOwners).filter(s => s.size === 1).length;
+            const totalFilesCount = Object.keys(fileOwners).length;
+            if (isolatedCount > 0 && totalFilesCount > 3 && (isolatedCount / totalFilesCount) > 0.5) {
+                addInsight('info', '📋', 'insight_isolated_title', 'insight_isolated_desc', { value: isolatedCount });
+            }
+
+            // --- Rule 11: Frequent Context Switching (avg dirs > 3) ---
+            const dayDirMap = {}; 
+            filteredData.forEach(d => {
+                if (!dayDirMap[d.dateStr]) dayDirMap[d.dateStr] = new Set();
+                (d.files || []).forEach(fIdx => {
+                    const fName = filePaths[fIdx] || '';
+                    const dir = fName.includes('/') ? fName.split('/')[0] : '(root)';
+                    dayDirMap[d.dateStr].add(dir);
+                });
+            });
+            const datesArr = Object.keys(dayDirMap);
+            const avgDirs = datesArr.length > 0 ? Object.values(dayDirMap).reduce((a, b) => a + b.size, 0) / datesArr.length : 0;
+            if (avgDirs > 3) {
+                addInsight('warning', '🔀', 'insight_ctxswitch_title', 'insight_ctxswitch_desc', { value: avgDirs.toFixed(1) });
+            }
+
+            // --- Rule 12: Long-lived Branches (> 7 days) ---
+            const mergeCommits = filteredData.filter(d => d.is_merge && d.message);
+            let longLivedCount = 0;
+            mergeCommits.forEach(mc => {
+                const match = mc.message.match(/Merge\s+(?:branch|pull request)\s+'?([^'"\s]+)'?/i);
+                if (!match) return;
+                const mergeDate = new Date(mc.date);
+                const parentCommits = filteredData.filter(d => 
+                    !d.is_merge && 
+                    new Date(d.date) <= mergeDate && 
+                    new Date(d.date) >= new Date(mergeDate.getTime() - 90 * 86400000)
+                );
+                if (parentCommits.length > 0) {
+                    const daysDiff = (mergeDate - new Date(parentCommits[parentCommits.length - 1].date)) / 86400000;
+                    if (daysDiff > 7) longLivedCount++;
+                }
+            });
+            if (longLivedCount > 0) {
+                addInsight('warning', '🔄', 'insight_longlived_title', 'insight_longlived_desc', { value: longLivedCount });
+            }
+
             // Render
             if (insights.length === 0) {
                 document.getElementById('insightsContainer').style.display = 'none';
@@ -595,6 +708,194 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 });
             }
         }
+
+        function updateOwnershipChart(filteredData) {
+            if (ownerChart) ownerChart.destroy();
+
+            // Build file -> { user -> count } map
+            const fileUserMap = {};
+            filteredData.forEach(d => {
+                (d.files || []).forEach(fIdx => {
+                    const fName = filePaths[fIdx] || `file_${fIdx}`;
+                    if (!fileUserMap[fName]) fileUserMap[fName] = {};
+                    fileUserMap[fName][d.author] = (fileUserMap[fName][d.author] || 0) + 1;
+                });
+            });
+
+            // Sort files by total modifications, take top 15
+            const fileTotals = Object.entries(fileUserMap).map(([f, users]) => ({
+                file: f,
+                total: Object.values(users).reduce((a, b) => a + b, 0),
+                users
+            })).sort((a, b) => b.total - a.total).slice(0, 15).reverse();
+
+            if (fileTotals.length === 0) return;
+
+            const fileLabels = fileTotals.map(f => {
+                const parts = f.file.split('/');
+                return parts.length > 2 ? '.../' + parts.slice(-2).join('/') : f.file;
+            });
+            const ownerUsers = [...new Set(fileTotals.flatMap(f => Object.keys(f.users)))];
+
+            const datasets = ownerUsers.map(user => ({
+                label: user,
+                data: fileTotals.map(f => f.users[user] || 0),
+                backgroundColor: stringToColor(user) + 'CC',
+                borderWidth: 0
+            }));
+
+            ownerChart = new Chart(ownerCtx, {
+                type: 'bar',
+                data: { labels: fileLabels, datasets },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.raw} ${t('label_commits')}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, title: { display: true, text: t('label_commits') } },
+                        y: { stacked: true, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function updateLeadTimeChart(filteredData) {
+            if (leadChart) leadChart.destroy();
+
+            // Find merge commits and extract branch names
+            const mergeCommits = filteredData.filter(d => d.is_merge && d.message);
+            const branches = [];
+
+            mergeCommits.forEach(mc => {
+                // Match "Merge branch 'xxx'" or "Merge branch 'xxx' into yyy"
+                const match = mc.message.match(/Merge\s+(?:branch|pull request)\s+'?([^'"\s]+)'?/i);
+                if (!match) return;
+                const branchName = match[1];
+                const mergeDate = new Date(mc.date);
+
+                // Find the earliest non-merge commit closest before this merge
+                // Use the parent commits' time range as approximation
+                const parentCommits = filteredData.filter(d =>
+                    !d.is_merge &&
+                    new Date(d.date) <= mergeDate &&
+                    new Date(d.date) >= new Date(mergeDate.getTime() - 90 * 86400000) // within 90 days
+                );
+
+                if (parentCommits.length === 0) return;
+
+                // Estimate: look for commits by same author within a reasonable timeframe
+                const daysDiff = Math.max(1, Math.round(
+                    (mergeDate - new Date(parentCommits[parentCommits.length - 1].date)) / 86400000
+                ));
+
+                branches.push({
+                    name: branchName.length > 25 ? branchName.substring(0, 22) + '...' : branchName,
+                    days: Math.min(daysDiff, 90),
+                    mergeDate: mc.dateStr
+                });
+            });
+
+            // Take last 15 branches
+            const recentBranches = branches.slice(0, 15).reverse();
+
+            if (recentBranches.length === 0) {
+                leadChart = new Chart(leadCtx, {
+                    type: 'bar',
+                    data: { labels: [t('label_branch')], datasets: [{ data: [0], backgroundColor: '#bdc3c7' }] },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: 'No merge commits found', color: '#999' }
+                        }
+                    }
+                });
+                return;
+            }
+
+            const colors = recentBranches.map(b => b.days > 7 ? '#e74c3c99' : b.days > 3 ? '#f39c1299' : '#27ae6099');
+
+            leadChart = new Chart(leadCtx, {
+                type: 'bar',
+                data: {
+                    labels: recentBranches.map(b => b.name),
+                    datasets: [{
+                        label: t('label_leadtime_days'),
+                        data: recentBranches.map(b => b.days),
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.raw} ${t('label_days')}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: t('label_leadtime_days') } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function updateContextSwitchChart(filteredData) {
+            if (ctxChart) ctxChart.destroy();
+
+            // For each day, count unique top-level directories per user
+            const dayDirMap = {}; // dateStr -> Set of dirs
+            filteredData.forEach(d => {
+                if (!dayDirMap[d.dateStr]) dayDirMap[d.dateStr] = new Set();
+                (d.files || []).forEach(fIdx => {
+                    const fName = filePaths[fIdx] || '';
+                    const dir = fName.includes('/') ? fName.split('/')[0] : '(root)';
+                    dayDirMap[d.dateStr].add(dir);
+                });
+            });
+
+            const dates = Object.keys(dayDirMap).sort();
+            const dirCounts = dates.map(d => dayDirMap[d].size);
+
+            if (dates.length === 0) return;
+
+            ctxChart = new Chart(ctxSwitchCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: t('label_avg_dirs'),
+                        data: dirCounts,
+                        borderColor: '#9b59b6',
+                        backgroundColor: '#9b59b633',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 15 } },
+                        y: { beginAtZero: true, title: { display: true, text: t('label_avg_dirs') } }
+                    }
+                }
+            });
+        }
+
 
         function updateHealthTrendChart(filteredData, startDate, endDate) {
             // Generate dense date list

@@ -17,5 +17,7 @@ pub struct CommitStats {
     pub email: String,
     pub is_merge: bool,
     #[serde(default)]
+    pub message: String,
+    #[serde(default)]
     pub files: Vec<usize>, // Indices into file_paths
 }

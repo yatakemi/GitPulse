@@ -105,6 +105,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             }
         }
 
+        let commit_message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
+
         stats_list.push(CommitStats {
             hash: oid.to_string(),
             author: author_name,
@@ -113,6 +115,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             deleted,
             email: author_email,
             is_merge,
+            message: commit_message,
             files: commit_files,
         });
     }
