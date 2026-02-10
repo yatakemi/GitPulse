@@ -65,60 +65,66 @@ pub const HTML_TEMPLATE: &str = r#"
         
         <div class="controls">
             <div class="control-group">
-                <label>Metric:</label>
+                <label data-i18n="language">Language:</label>
+                <select id="langSelect" onchange="updateLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label data-i18n="metric">Metric:</label>
                 <select id="metricSelect" onchange="updateDashboard()">
-                    <option value="total_changes">Total Changes</option>
-                    <option value="added">Added Lines</option>
-                    <option value="deleted">Deleted Lines</option>
-                    <option value="commit_count">Commit Count</option>
-                    <option value="churn">Code Churn (Volatility)</option>
+                    <option value="total_changes" data-i18n="metric_total">Total Changes</option>
+                    <option value="added" data-i18n="metric_added">Added Lines</option>
+                    <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
+                    <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
+                    <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
                 </select>
             </div>
             
             <!-- ... existing controls ... -->
 
             <div class="control-group">
-                <label>Chart:</label>
+                <label data-i18n="chart_type">Chart:</label>
                 <select id="chartTypeSelect" onchange="updateDashboard()">
-                    <option value="line">Line Chart</option>
-                    <option value="bar">Stacked Bar</option>
+                    <option value="line" data-i18n="chart_line">Line Chart</option>
+                    <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Start:</label>
+                <label data-i18n="start">Start:</label>
                 <input type="date" id="startDate" onchange="updateDashboard()">
             </div>
             <div class="control-group">
-                <label>End:</label>
+                <label data-i18n="end">End:</label>
                 <input type="date" id="endDate" onchange="updateDashboard()">
             </div>
             <div class="control-group">
                 <input type="checkbox" id="showTrend" onchange="updateDashboard()">
-                <label for="showTrend">7-Day Trend</label>
+                <label for="showTrend" data-i18n="trend">7-Day Trend</label>
             </div>
         </div>
 
         <div class="summary-cards">
-            <!-- ... existing cards ... -->
              <div class="card">
-                <h3 id="summaryTitle">Total</h3>
+                <h3 id="summaryTitle" data-i18n="sum_total">Total</h3>
                 <div class="value" id="summaryValue">-</div>
                 <div class="diff" id="summaryDiff">-</div>
             </div>
             <div class="card">
-                <h3>Merge Commits</h3>
+                <h3 data-i18n="sum_merge">Merge Commits</h3>
                 <div class="value" id="mergeCommitsValue">-</div>
              </div>
              <div class="card">
-                <h3>Churn Rate</h3>
+                <h3 data-i18n="sum_churn">Churn Rate</h3>
                 <div class="value" id="churnRateValue">-</div>
              </div>
             <div class="card">
-                <h3>Active Days</h3>
+                <h3 data-i18n="sum_active">Active Days</h3>
                 <div class="value" id="activeDaysValue">-</div>
             </div>
             <div class="card">
-                <h3>Avg / Day</h3>
+                <h3 data-i18n="sum_avg">Avg / Day</h3>
                 <div class="value" id="avgPerDayValue">-</div>
             </div>
         </div>
@@ -126,57 +132,57 @@ pub const HTML_TEMPLATE: &str = r#"
         <div class="charts-grid">
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    Timeline 
-                    <span class="info-icon" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent.">i</span>
+                    <span data-i18n="chart_timeline">Timeline</span> 
+                    <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent.">i</span>
                 </div>
                 <canvas id="productivityChart"></canvas>
             </div>
             <div class="chart-box">
                 <div class="chart-title">
-                    User Share
-                    <span class="info-icon" data-tooltip="Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev) or uneven workload distribution.">i</span>
+                    <span data-i18n="chart_share">User Share</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_share" data-tooltip="Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev) or uneven workload distribution.">i</span>
                 </div>
                 <canvas id="shareChart"></canvas>
             </div>
             <div class="chart-box">
                 <div class="chart-title">
-                    Day of Week Activity
-                    <span class="info-icon" data-tooltip="Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time or unhealthy work habits.">i</span>
+                    <span data-i18n="chart_dow">Day of Week Activity</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_dow" data-tooltip="Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time or unhealthy work habits.">i</span>
                 </div>
                 <canvas id="dayOfWeekChart"></canvas>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    Activity Heatmap (Hour vs Day)
-                    <span class="info-icon" data-tooltip="Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk.">i</span>
+                    <span data-i18n="chart_heatmap">Activity Heatmap (Hour vs Day)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_heatmap" data-tooltip="Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk.">i</span>
                 </div>
                 <canvas id="heatmapChart"></canvas>
             </div>
              <div class="chart-box full-width">
                 <div class="chart-title">
-                    Commit Size Distribution
-                    <span class="info-icon" data-tooltip="Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review.">i</span>
+                    <span data-i18n="chart_size">Commit Size Distribution</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_size" data-tooltip="Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review.">i</span>
                 </div>
                 <canvas id="sizeDistChart"></canvas>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    File Hotspots (Top 20 Modified)
-                    <span class="info-icon" data-tooltip="Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring.">i</span>
+                    <span data-i18n="chart_hotspots">File Hotspots (Top 20 Modified)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_hotspots" data-tooltip="Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring.">i</span>
                 </div>
                 <canvas id="hotspotsChart"></canvas>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    Est. Daily Work Duration
-                    <span class="info-icon" data-tooltip="Time between first and last commit of the day. NOTE: Not actual work hours, but indicates span of activity. Long spans may suggest burnout.">i</span>
+                    <span data-i18n="chart_duration">Est. Daily Work Duration</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_duration" data-tooltip="Time between first and last commit of the day. NOTE: Not actual work hours, but indicates span of activity. Long spans may suggest burnout.">i</span>
                 </div>
                 <canvas id="workDurationChart"></canvas>
             </div>
              <div class="chart-box full-width">
                 <div class="chart-title">
-                    Team Health Trends
-                    <span class="info-icon" data-tooltip="Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring.
+                    <span data-i18n="chart_health">Team Health Trends</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_health" data-tooltip="Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring.
 Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 </div>
                 <canvas id="healthTrendChart"></canvas>
@@ -185,6 +191,133 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
     </div>
 
     <script>
+        const translations = {
+            en: {
+                title: "Git Productivity Report",
+                language: "Language:",
+                metric: "Metric:",
+                metric_total: "Total Changes",
+                metric_added: "Added Lines",
+                metric_deleted: "Deleted Lines",
+                metric_commits: "Commit Count",
+                metric_churn: "Code Churn (Volatility)",
+                chart_type: "Chart:",
+                chart_line: "Line Chart",
+                chart_bar: "Stacked Bar",
+                start: "Start:",
+                end: "End:",
+                trend: "7-Day Trend",
+                sum_total: "Total",
+                sum_merge: "Merge Commits",
+                sum_churn: "Churn Rate",
+                sum_active: "Active Days",
+                sum_avg: "Avg / Day",
+                chart_timeline: "Timeline",
+                chart_share: "User Share",
+                chart_dow: "Day of Week Activity",
+                chart_heatmap: "Activity Heatmap (Hour vs Day)",
+                chart_size: "Commit Size Distribution",
+                chart_hotspots: "File Hotspots (Top 20 Modified)",
+                chart_duration: "Est. Daily Work Duration (First to Last Commit)",
+                chart_health: "Team Health Trends (Churn Rate & Work Duration)",
+                tooltip_timeline: "Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent.",
+                tooltip_share: "Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev) or uneven workload distribution.",
+                tooltip_dow: "Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time or unhealthy work habits.",
+                tooltip_heatmap: "Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk.",
+                tooltip_size: "Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review.",
+                tooltip_hotspots: "Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring.",
+                tooltip_duration: "Time between first and last commit of the day. NOTE: Not actual work hours, but indicates span of activity. Long spans may suggest burnout.",
+                tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring.\nPurple: Avg Duration. Rising trend = Potential Overwork.",
+                label_activity: "Activity", 
+                label_commit_count: "Commit Count",
+                label_mod_count: "Modification Count",
+                label_days_count: "Days Count",
+                label_churn_rate: "Churn Rate (%)",
+                label_avg_duration: "Avg Work Duration (Hours)",
+                diff_new: "New Activity",
+                diff_prev: "vs prev"
+            },
+            ja: {
+                title: "Git生産性レポート",
+                language: "言語:",
+                metric: "指標:",
+                metric_total: "変更行数 (合計)",
+                metric_added: "追加行数",
+                metric_deleted: "削除行数",
+                metric_commits: "コミット数",
+                metric_churn: "コードチャーン (手戻り)",
+                chart_type: "グラフ種類:",
+                chart_line: "折れ線",
+                chart_bar: "積み上げ棒",
+                start: "開始日:",
+                end: "終了日:",
+                trend: "7日移動平均",
+                sum_total: "合計",
+                sum_merge: "マージコミット",
+                sum_churn: "チャーン率",
+                sum_active: "活動日数",
+                sum_avg: "1日平均",
+                chart_timeline: "タイムライン",
+                chart_share: "ユーザー別シェア",
+                chart_dow: "曜日別アクティビティ",
+                chart_heatmap: "時間帯ヒートマップ (時 vs 曜日)",
+                chart_size: "コミットサイズ分布",
+                chart_hotspots: "変更頻度ランキング (Top 20)",
+                chart_duration: "推定稼働時間 (最初のコミット〜最後)",
+                chart_health: "チーム健全性トレンド (チャーン率 & 稼働時間)",
+                tooltip_timeline: "活動の推移を表示します。スパイク（スプリント/リリース）やギャップ（ブロッカー/休暇）を確認できます。活動が一定であることが理想的です。",
+                tooltip_share: "貢献度の分布です。「バス係数」（特定の開発者への依存）や作業負荷の偏りを特定するのに役立ちます。",
+                tooltip_dow: "週ごとのリズムです。多くのチームは火〜木にピークを迎えます。週末の活動が多い場合は、デスマーチや不健全な働き方を示唆している可能性があります。",
+                tooltip_heatmap: "コアタイムを特定します。通常の時間外（深夜など）にクラスターがある場合は、残業やバーンアウトのリスクを示唆します。",
+                tooltip_size: "コミットサイズの内訳です。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難な大きな変更やリスクを示唆します。",
+                tooltip_hotspots: "最も頻繁に変更されるファイルです。これらはアーキテクチャ上のボトルネック、「神クラス」、またはリファクタリングが必要な不安定なモジュールである可能性があります。",
+                tooltip_duration: "その日の最初のコミットから最後のコミットまでの時間です。注：実際の労働時間ではありませんが、活動の幅を示します。長い期間はバーンアウトを示唆する可能性があります。",
+                tooltip_health: "赤: チャーン率（手戻り/変動）。高い＝不安定/リファクタリング中。\n紫: 平均稼働時間。上昇傾向＝過重労働の可能性。",
+                label_activity: "アクティビティ",
+                label_commit_count: "コミット数",
+                label_mod_count: "変更回数",
+                label_days_count: "日数",
+                label_churn_rate: "チャーン率 (%)",
+                label_avg_duration: "平均稼働時間 (時間)",
+                diff_new: "新規",
+                diff_prev: "前回比"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function t(key) {
+            return translations[currentLang][key] || key;
+        }
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('langSelect').value = lang;
+            
+            // Static text updates
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+
+            // Tooltip updates
+            document.querySelectorAll('[data-tooltip]').forEach(el => {
+                 // Try to find key from parent's title? 
+                 // Actually the tooltip is on specific .info-icon. 
+                 // Let's rely on data-i18n-tooltip if we add it, or map manually.
+                 // Better: Add data-i18n-tooltip to .info-icon
+                 const key = el.getAttribute('data-i18n-tooltip');
+                 if (key && translations[lang][key]) {
+                     el.setAttribute('data-tooltip', translations[lang][key]);
+                 }
+            });
+
+            // Re-render dashboard to update chart labels
+            updateDashboard();
+        }
+
         const reportData = {{ data | json_encode() | safe }};
         const rawCommits = reportData.commits;
         const filePaths = reportData.file_paths;

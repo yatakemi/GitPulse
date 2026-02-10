@@ -2,21 +2,38 @@ use crate::model::CommitStats;
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use git2::{Repository, Sort};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
 pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
+    
+    // First pass: Count total commits for progress bar
+    println!("⏳ Counting commits...");
     let mut revwalk = repo.revwalk()?;
     revwalk.set_sorting(Sort::TIME)?;
     revwalk.push_head()?;
+    let total_commits = revwalk.count() as u64;
+
+    // Second pass: Process commits
+    let mut revwalk = repo.revwalk()?;
+    revwalk.set_sorting(Sort::TIME)?;
+    revwalk.push_head()?;
+
+    let pb = ProgressBar::new(total_commits);
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+        .unwrap()
+        .progress_chars("#>-"));
 
     let mut stats_list = Vec::new();
     let mut file_paths = Vec::new();
     let mut file_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for oid_result in revwalk {
+        pb.inc(1);
         let oid = oid_result?;
         let commit = repo.find_commit(oid)?;
 
@@ -99,6 +116,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             files: commit_files,
         });
     }
+
+    pb.finish_with_message("Done");
 
     let report_data = crate::model::ReportData {
         commits: stats_list,
