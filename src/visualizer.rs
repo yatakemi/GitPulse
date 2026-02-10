@@ -22,21 +22,22 @@ pub struct AggregatedStats {
 pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> Result<()> {
     let file = File::open(input_path).context("Failed to open input file")?;
     let reader = BufReader::new(file);
-    let mut commits: Vec<CommitStats> = serde_json::from_reader(reader).context("Failed to parse JSON")?;
-
+    // Parse as ReportData instead of Vec<CommitStats>
+    let mut report_data: crate::model::ReportData = serde_json::from_reader(reader).context("Failed to parse JSON")?;
+    
+    // Resize (Normalize) authors in commits
     // Load config from current directory or repository root (basic assumption: current dir)
     let config_path = Path::new("gitpulse.toml");
     let config = crate::config::Config::load(config_path).unwrap_or_default();
 
-    // Resize (Normalize) authors in commits
-    for commit in &mut commits {
+    for commit in &mut report_data.commits {
         commit.author = normalize_author(&commit.author, &commit.email, &config);
     }
 
     // Aggregate data by day and user: (added, deleted, commit_count)
     let mut aggregation: HashMap<(String, String), (usize, usize, usize)> = HashMap::new();
 
-    for commit in &commits {
+    for commit in &report_data.commits {
         // Group by day
         let date = commit.date.date_naive();
         let day_str = date.format("%Y-%m-%d").to_string();
@@ -65,7 +66,7 @@ pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> R
 
     match format {
         "csv" => export_csv(&stats_list, output_path),
-        "html" => export_html(&commits, output_path),
+        "html" => export_html(&report_data, output_path),
         _ => anyhow::bail!("Unsupported format: {}", format),
     }
 }
@@ -105,9 +106,9 @@ fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn export_html(stats: &[CommitStats], output_path: &Path) -> Result<()> {
+fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()> {
     let mut context = TeraContext::new();
-    context.insert("data", stats);
+    context.insert("data", data); // Now passing ReportData object
     let rendered = Tera::one_off(crate::html_template::HTML_TEMPLATE, &context, false)
         .context("Failed to render HTML template")?;
     let mut file = File::create(output_path)?;

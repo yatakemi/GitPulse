@@ -11,7 +11,8 @@
     - **Timeline**: Visualize code changes (Added/Deleted) or commit counts over time.
     - **Trends**: 7-day moving average trend lines to see the big picture.
     - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
-    - **Productivity**: Day of Week analysis and Commit Size distribution.
+    - **Team Health**: Track "Code Churn" (Refactoring/Rework) and "Work Duration" trends.
+    - **File Hotspots**: Identify frequently modified files that might need architectural attention.
 - 🎯 **Flexible Metrics**: Switch between Added, Deleted, Total lines, and Commit Count.
 - 🔀 **Merge Commits**: Tracks merge commits (as 0 changes) and displays them separately in the dashboard.
 - 🤝 **User Unification**: Merge duplicate users (e.g., personal vs work email) and automatically handle GitHub noreply addresses.
@@ -79,6 +80,24 @@ You can unify multiple author names/emails into a single user by creating a `git
 ```
 
 **Note:** GitHub noreply emails (e.g., `123456+username@users.noreply.github.com`) are **automatically merged** to `username` by default, so you don't need to define them manually unless you want to rename them.
+
+## Advanced Analysis (v0.6+)
+
+GitPulse now includes advanced analysis features to help you understand your team's health and codebase quality:
+
+### 🔥 File Hotspots
+Identifies the top 20 most frequently modified files. Frequent changes to the same file often indicate:
+- **God Class**: A class that does too much.
+- **Instability**: Code that is fragile and requires constant fixing.
+- **Architectural Bottleneck**: Core logic that everyone touches concurrently.
+
+### 🧘 Work Habits & Team Health
+- **Est. Daily Work Duration**: Calculates the time span between the first and last commit of the day for each user. Helps identify potential burnout or unhealthy working hours.
+- **Code Churn (Volatility)**: Measures the ratio of "Rework" (edits to existing code) vs "New Work". High churn might indicate unclear requirements or technical debt.
+- **Health Trends**: A dedicated chart tracking Churn Rate and Work Duration over time to spot negative trends early.
+
+### ℹ️ Interactive Explanations
+The dashboard includes tooltips (info icons) for each chart, explaining what to look for and how to interpret the data, making it easier for non-technical stakeholders to understand.
 
 ## Architecture
 

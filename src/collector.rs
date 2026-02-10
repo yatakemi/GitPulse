@@ -13,6 +13,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
     revwalk.push_head()?;
 
     let mut stats_list = Vec::new();
+    let mut file_paths = Vec::new();
+    let mut file_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for oid_result in revwalk {
         let oid = oid_result?;
@@ -30,6 +32,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
 
         let mut added = 0;
         let mut deleted = 0;
+        let mut commit_files = Vec::new();
 
         if !is_merge {
             if commit.parent_count() == 0 {
@@ -39,6 +42,23 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
                     let stats = diff.stats()?;
                     added = stats.insertions();
                     deleted = stats.deletions();
+                    
+                    // Collect file paths
+                    diff.foreach(&mut |delta, _float| {
+                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                            let path_string = path.to_string();
+                            let idx = if let Some(&i) = file_map.get(&path_string) {
+                                i
+                            } else {
+                                let i = file_paths.len();
+                                file_paths.push(path_string.clone());
+                                file_map.insert(path_string, i);
+                                i
+                            };
+                            commit_files.push(idx);
+                        }
+                        true
+                    }, None, None, None)?;
                 }
             } else {
                 let parent = commit.parent(0)?;
@@ -48,6 +68,23 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
                 let stats = diff.stats()?;
                 added = stats.insertions();
                 deleted = stats.deletions();
+
+                // Collect file paths
+                diff.foreach(&mut |delta, _float| {
+                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        let path_string = path.to_string();
+                        let idx = if let Some(&i) = file_map.get(&path_string) {
+                            i
+                        } else {
+                            let i = file_paths.len();
+                            file_paths.push(path_string.clone());
+                            file_map.insert(path_string, i);
+                            i
+                        };
+                        commit_files.push(idx);
+                    }
+                    true
+                }, None, None, None)?;
             }
         }
 
@@ -59,13 +96,19 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             deleted,
             email: author_email,
             is_merge,
+            files: commit_files,
         });
     }
 
+    let report_data = crate::model::ReportData {
+        commits: stats_list,
+        file_paths,
+    };
+
     let file = File::create(output_path).context("Failed to create output file")?;
     let writer = BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, &stats_list).context("Failed to write JSON")?;
+    serde_json::to_writer_pretty(writer, &report_data).context("Failed to write JSON")?;
 
-    println!("Collected stats for {} commits into {:?}", stats_list.len(), output_path);
+    println!("Collected stats for {} commits into {:?}", report_data.commits.len(), output_path);
     Ok(())
 }

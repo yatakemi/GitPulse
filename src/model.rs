@@ -2,6 +2,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ReportData {
+    pub commits: Vec<CommitStats>,
+    pub file_paths: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CommitStats {
     pub hash: String,
     pub author: String,
@@ -10,4 +16,6 @@ pub struct CommitStats {
     pub deleted: usize,
     pub email: String,
     pub is_merge: bool,
+    #[serde(default)]
+    pub files: Vec<usize>, // Indices into file_paths
 }
