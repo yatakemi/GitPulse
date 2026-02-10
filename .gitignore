@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+*.json
+*.html
+*.csv
+sample_repo/
+test_repo/
