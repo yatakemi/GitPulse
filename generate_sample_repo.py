@@ -45,7 +45,24 @@ def main():
         env['GIT_COMMITTER_EMAIL'] = user_email
         
         subprocess.check_call(['git', 'commit', '-m', f"Commit {i}"], cwd=repo_dir, env=env)
-        
+
+    # Create a merge commit
+    run_git(['checkout', '-b', 'feature-branch'], repo_dir)
+    with open(os.path.join(repo_dir, "feature.txt"), "w") as f:
+        f.write("Feature work\n")
+    run_git(['add', '.'], repo_dir)
+    run_git(['commit', '-m', "Feature commit"], repo_dir)
+    
+    run_git(['checkout', 'main'], repo_dir)
+    with open(os.path.join(repo_dir, "main.txt"), "w") as f:
+        f.write("Main work\n")
+    run_git(['add', '.'], repo_dir)
+    run_git(['commit', '-m', "Main commit"], repo_dir)
+    
+    # Merge feature-branch into main
+    # Use --no-ff to ensure a merge commit is created
+    run_git(['merge', '--no-ff', 'feature-branch', '-m', "Merge feature-branch"], repo_dir)
+
     print(f"Generated sample repo at {repo_dir}")
 
 if __name__ == "__main__":

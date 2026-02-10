@@ -13,6 +13,7 @@
     - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
     - **Productivity**: Day of Week analysis and Commit Size distribution.
 - 🎯 **Flexible Metrics**: Switch between Added, Deleted, Total lines, and Commit Count.
+- 🔀 **Merge Commits**: Tracks merge commits (as 0 changes) and displays them separately in the dashboard.
 - 🤝 **User Unification**: Merge duplicate users (e.g., personal vs work email) and automatically handle GitHub noreply addresses.
 - 🐳 **Portable**: Database-free (uses JSON for intermediate storage), making it easy to version control your stats.
 

@@ -81,6 +81,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 <div class="diff" id="summaryDiff">-</div>
             </div>
             <div class="card">
+                <h3>Merge Commits</h3>
+                <div class="value" id="mergeCommitsValue">-</div>
+             </div>
+            <div class="card">
                 <h3>Active Days</h3>
                 <div class="value" id="activeDaysValue">-</div>
             </div>
@@ -128,7 +132,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 dayOfWeek: dateObj.getDay(), // 0=Sun, 1=Mon...
                 hour: dateObj.getHours(),
                 total_changes: d.added + d.deleted,
-                commit_count: 1
+                commit_count: 1, // Base count for every commit
+                is_merge: d.is_merge || false
             };
         });
 
@@ -200,6 +205,7 @@ pub const HTML_TEMPLATE: &str = r#"
 
         function updateSummary(currentData, metric, startDate, endDate) {
             const currentTotal = currentData.reduce((acc, d) => acc + d[metric], 0);
+            const mergeTotal = currentData.filter(d => d.is_merge).length;
             const activeDays = new Set(currentData.map(d => d.dateStr)).size;
             const avgPerDay = activeDays > 0 ? (currentTotal / activeDays).toFixed(1) : 0;
 
@@ -215,8 +221,12 @@ pub const HTML_TEMPLATE: &str = r#"
             const prevData = data.filter(d => d.dateStr >= prevStartStr && d.dateStr <= prevEndStr);
             const prevTotal = prevData.reduce((acc, d) => acc + d[metric], 0);
 
-            document.getElementById('summaryTitle').textContent = `Total ${metric.replace('_', ' ')}`;
+            let titleFormatted = metric.replace('_', ' ');
+            if (metric === 'commit_count') titleFormatted = 'Total Commits';
+            
+            document.getElementById('summaryTitle').textContent = titleFormatted;
             document.getElementById('summaryValue').textContent = currentTotal.toLocaleString();
+            document.getElementById('mergeCommitsValue').textContent = mergeTotal.toLocaleString();
             document.getElementById('activeDaysValue').textContent = activeDays;
             document.getElementById('avgPerDayValue').textContent = Number(avgPerDay).toLocaleString();
 
@@ -250,6 +260,19 @@ pub const HTML_TEMPLATE: &str = r#"
             filteredData.forEach(d => {
                 if (!dateMap.has(d.dateStr)) return;
                 const daily = dateMap.get(d.dateStr);
+                
+                // If metric is commit_count, we might want to split regular vs merge (optional)
+                // For now, let's keep it simple: aggregated by user as before.
+                // The prompt asked to distinguish them. 
+                // Let's try to add a 'Merge Commits' dataset if metric is commit_count?
+                // Or maybe just normal aggregation. The user said "distinguish merge commits".
+                // Since we stack by user, adding "Merge" as a separate category is tricky if we want to keep user breakdown.
+                // Alternative: When 'commit_count' is selected, maybe we shouldn't break down by user but by Type (Regular vs Merge)?
+                // But the user breakdown is a core feature.
+                // Let's keep User Breakdown for now, but maybe add (Merge) in tooltip?
+                
+                // Let's stick to standard user breakdown for the timeline for consistency.
+                // The summary card already shows total merges.
                 daily[d.author] = (daily[d.author] || 0) + d[metric];
             });
 

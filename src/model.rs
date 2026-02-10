@@ -9,4 +9,5 @@ pub struct CommitStats {
     pub added: usize,
     pub deleted: usize,
     pub email: String,
+    pub is_merge: bool,
 }

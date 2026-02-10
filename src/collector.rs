@@ -18,10 +18,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
         let oid = oid_result?;
         let commit = repo.find_commit(oid)?;
 
-        // Ignore merge commits (2 or more parents)
-        if commit.parent_count() > 1 {
-            continue;
-        }
+        // Check if it's a merge commit
+        let is_merge = commit.parent_count() > 1;
 
         let author = commit.author();
         let author_name = author.name().unwrap_or("Unknown").to_string();
@@ -33,22 +31,24 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
         let mut added = 0;
         let mut deleted = 0;
 
-        if commit.parent_count() == 0 {
-            // Initial commit
-            if let Ok(tree) = commit.tree() {
-                let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
+        if !is_merge {
+            if commit.parent_count() == 0 {
+                // Initial commit
+                if let Ok(tree) = commit.tree() {
+                    let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
+                    let stats = diff.stats()?;
+                    added = stats.insertions();
+                    deleted = stats.deletions();
+                }
+            } else {
+                let parent = commit.parent(0)?;
+                let tree = commit.tree()?;
+                let parent_tree = parent.tree()?;
+                let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
                 let stats = diff.stats()?;
                 added = stats.insertions();
                 deleted = stats.deletions();
             }
-        } else {
-            let parent = commit.parent(0)?;
-            let tree = commit.tree()?;
-            let parent_tree = parent.tree()?;
-            let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
-            let stats = diff.stats()?;
-            added = stats.insertions();
-            deleted = stats.deletions();
         }
 
         stats_list.push(CommitStats {
@@ -58,6 +58,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
             added,
             deleted,
             email: author_email,
+            is_merge,
         });
     }
 

@@ -9,6 +9,11 @@ else
     exit 1
 fi
 
+if [ -d "sample_repo" ]; then
+    echo "📥 Collecting stats from sample_repo..."
+    ./target/release/gitpulse collect --repo sample_repo --out sample_stats.json
+fi
+
 echo "📊 Generating report..."
 ./target/release/gitpulse visualize --data sample_stats.json --out sample_report.html --format html
 
