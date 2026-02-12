@@ -137,9 +137,10 @@ Identifies the top 20 most frequently modified files. Frequent changes to the sa
 The dashboard includes tooltips (info icons) for each chart, explaining what to look for and how to interpret the data, making it easier for non-technical stakeholders to understand.
 
 ### 🐙 GitHub Review Activity (v0.13.10+)
-When the `--github` flag is used, GitPulse fetches the last 100 Pull Requests and their reviews using the GitHub GraphQL API. 
+When the `--github` flag is used, GitPulse fetches the recent Pull Requests and their reviews using the GitHub GraphQL API. 
 - **Reviews Given**: See who is contributing to the team through code reviews, not just code changes.
-- **PR Table**: A dedicated table showing recent PRs, their authors, and the reviewers who participated.
+- **Accuracy**: Fetches up to 500 recent PRs to ensure coverage of older review activity.
+- **Caching**: Data is cached in the system Temp directory (`/tmp` or `/var/folders/...`) to avoid Rate Limits. Use `--no-cache` to force a fresh fetch.
 - **Authentication**: Automatically uses `gh` CLI's token if available, otherwise falls back to the `GITHUB_TOKEN` environment variable.
 
 ## Architecture
