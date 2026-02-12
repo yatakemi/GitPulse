@@ -141,8 +141,6 @@ fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
 }
 
 fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()> {
-    let dashboard_data = aggregate_dashboard_data(data);
-    
     let config_path = Path::new("gitpulse.toml");
     let config = if config_path.exists() {
         crate::config::Config::load(config_path).unwrap_or_default()
@@ -150,6 +148,35 @@ fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()
         crate::config::Config::default()
     };
 
+    // Check for GitHub users who don't match any local users
+    let mut local_users = std::collections::HashSet::new();
+    for commit in &data.commits {
+        local_users.insert(commit.author.clone());
+    }
+
+    let mut unmapped_github_users = std::collections::HashSet::new();
+    for pr in &data.github_prs {
+        for review in &pr.reviews {
+            // Apply normalization/alias to the GitHub username
+            let normalized = normalize_author(&review.user, "", &config);
+            if !local_users.contains(&normalized) {
+                unmapped_github_users.insert(review.user.clone());
+            }
+        }
+    }
+
+    if !unmapped_github_users.is_empty() {
+        println!("⚠️  Found GitHub reviewers not mapped to local users:");
+        let mut sorted_users: Vec<_> = unmapped_github_users.into_iter().collect();
+        sorted_users.sort();
+        for user in sorted_users {
+            println!("   - {}", user);
+        }
+        println!("   (Tip: Add these to [alias] in gitpulse.toml to link them to local users)");
+    }
+
+    let dashboard_data = aggregate_dashboard_data(data);
+    
     let mut context = TeraContext::new();
     context.insert("data", &dashboard_data);
     context.insert("aliases", &config.alias);

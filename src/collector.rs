@@ -67,7 +67,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
     
     let mut github_prs = Vec::new();
     if include_github {
-        let client = crate::github::GitHubClient::new(repo_path)?;
+        let cache_dir = output_path.parent().unwrap_or_else(|| Path::new("."));
+        let client = crate::github::GitHubClient::new(repo_path, cache_dir)?;
         
         let mut loaded = false;
         if !no_cache {

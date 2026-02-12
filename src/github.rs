@@ -23,10 +23,11 @@ pub struct GitHubClient {
     token: String,
     repo: String, // "owner/repo"
     agent: ureq::Agent,
+    cache_dir: std::path::PathBuf,
 }
 
 impl GitHubClient {
-    pub fn new(repo_path: &std::path::Path) -> Result<Self> {
+    pub fn new(repo_path: &std::path::Path, cache_dir: &std::path::Path) -> Result<Self> {
         let token = Self::get_token()?;
         let repo = Self::get_repo_name(repo_path)?;
         
@@ -42,13 +43,14 @@ impl GitHubClient {
             token, 
             repo,
             agent: agent_builder.build(),
+            cache_dir: cache_dir.to_path_buf(),
         })
     }
 
     pub fn get_cache_path(&self) -> std::path::PathBuf {
-        let mut path = std::env::temp_dir();
+        let mut path = self.cache_dir.clone();
         let safe_repo = self.repo.replace('/', "_");
-        path.push(format!("gitpulse_cache_{}.json", safe_repo));
+        path.push(format!(".gitpulse_cache_{}.json", safe_repo));
         path
     }
 

@@ -57,6 +57,9 @@ gitpulse collect --merges-only --out merge_stats.json
 # Analyze with GitHub Review activity
 # Requires 'gh' CLI authenticated or GITHUB_TOKEN env var
 gitpulse collect --github --out stats_with_reviews.json
+
+# Force fresh fetch from GitHub (ignore local cache)
+gitpulse collect --github --no-cache --out stats_with_reviews.json
 ```
 
 ### 2. Visualize Data
