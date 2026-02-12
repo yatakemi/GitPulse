@@ -271,7 +271,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 </div>
             </div>
             <div class="chart-box full-width" style="box-shadow: none; padding: 0;">
-                <div class="chart-title" data-i18n="forecast_chart_title">Velocity Forecasting</div>
+                <div class="chart-title">
+                    <span data-i18n="forecast_chart_title">Velocity Forecasting</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_forecast" data-tooltip="Predicts future commit count based on recent velocity. Useful for estimating project completion dates.">i</span>
+                </div>
                 <canvas id="forecastChart" style="height: 300px;"></canvas>
             </div>
         </div>
@@ -438,14 +441,18 @@ pub const HTML_TEMPLATE: &str = r#"
                 chart_hotspots: "File Hotspots (Top 20 Modified)",
                 chart_duration: "Est. Daily Work Duration",
                 chart_health: "Team Health Trends",
-                tooltip_timeline: "Shows activity trends over time.",
-                tooltip_share: "Distribution of contributions.",
-                tooltip_dow: "Weekly rhythm.",
-                tooltip_heatmap: "Identifies core working hours.",
-                tooltip_size: "Breakdown of commit sizes.",
-                tooltip_hotspots: "Most frequently changed files.",
-                tooltip_duration: "Time between first and last commit.",
-                tooltip_health: "Churn Rate & Avg Duration.",
+                tooltip_timeline: "Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.",
+                tooltip_share: "Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev). A highly skewed chart suggests high risk if the top contributor is unavailable.",
+                tooltip_dow: "Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time, unhealthy work habits, or upcoming release pressure.",
+                tooltip_heatmap: "Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk. Inconsistent heatmaps might indicate lack of overlapping hours for collaboration.",
+                tooltip_size: "Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review and more likely to contain bugs.",
+                tooltip_hotspots: "Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring or better tests.",
+                tooltip_duration: "Time between first and last commit of the day. NOTE: Not actual work hours, but indicates the span of activity. Long spans (>8h) consistently may suggest burnout risk.",
+                tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring. Purple: Avg Duration. Rising trend in both often indicates 'Technical Debt' or 'Crunch Time'.",
+                tooltip_ownership: "Shows who contributes to which files. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience and knowledge sharing.",
+                tooltip_leadtime: "Time span of merged branches (from first commit to merge). Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity and risk.",
+                tooltip_ctxswitch: "Number of distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work productivity.",
+                tooltip_forecast: "Predicts future output based on the last 4 weeks of velocity. The dotted line shows the projected trend. Change the 'Target Goal' to see an estimated completion date.",
                 label_activity: "Activity", 
                 label_commit_count: "Commit Count",
                 label_mod_count: "Modification Count",
@@ -534,15 +541,18 @@ pub const HTML_TEMPLATE: &str = r#"
                 chart_hotspots: "変更頻度ランキング",
                 chart_duration: "推定稼働時間",
                 chart_health: "チーム健全性トレンド",
-                tooltip_timeline: "活動の推移を表示します。",
-                tooltip_share: "貢献度の分布です。",
-                tooltip_dow: "週ごとのリズムです。",
-                tooltip_heatmap: "コアタイムを特定します。",
-                tooltip_size: "コミットサイズの内訳です。",
-                tooltip_hotspots: "最も頻繁に変更されるファイルです。",
-                tooltip_duration: "活動の幅を示します。",
-                tooltip_health: "チャーン率 & 稼働時間。",
-                label_activity: "アクティビティ",
+                tooltip_timeline: "活動の推移を表示します。スパイク（リリース前）やギャップ（停滞）を確認できます。活動が一定であることが理想的です。削除行のスパイクはコードの整理やリファクタリングを示唆します。",
+                tooltip_share: "貢献度の分布です。「バス係数」（特定の開発者への依存度）を特定します。極端に偏っている場合は、その人が不在の際のリスクが高いことを示します。",
+                tooltip_dow: "チームの週ごとのリズムです。多くのチームは火〜木にピークを迎えます。週末の活動が多い場合は、デスマーチや不健全な働き方、リリース前のプレッシャーを示唆します。",
+                tooltip_heatmap: "コアタイムを特定します。深夜など通常の時間外にクラスターがある場合は、残業やバーンアウトのリスクを示唆します。疎らなヒートマップは非同期作業が多く協力時間が不足している可能性があります。",
+                tooltip_size: "コミットサイズの内訳です。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唆します。",
+                tooltip_hotspots: "最も頻繁に変更されるファイルです。これらはアーキテクチャ上のボトルネック、「神クラス」、またはリファクタリングやテスト強化が必要な不安定なモジュールである可能性があります。",
+                tooltip_duration: "その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。",
+                tooltip_health: "赤: 手戻り率（Volatility）。高い＝不安定/リファクタリング中。紫: 平均活動幅。両方が上昇傾向にある場合は、技術負債やデスマーチの兆候である可能性が高いです。",
+                tooltip_ownership: "誰がどのファイルに貢献しているかを示します。1人だけが触っているファイルは『バス係数』のリスクです。バランスの良いオーナーシップは知識共有とチームの回復力を高めます。",
+                tooltip_leadtime: "マージされたブランチの寿命（最初のコミット〜マージ）。短いリードタイムは迅速なデリバリーを、長いリードタイムはマージの複雑化とリスク増大を示します。",
+                tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。",
+                tooltip_forecast: "過去4週間のベロシティに基づき将来の出力を予測します。点線は予測トレンドです。『目標コミット数』を変更すると、達成予測日が表示されます。",
                 label_commit_count: "コミット数",
                 label_mod_count: "変更回数",
                 label_days_count: "日数",
