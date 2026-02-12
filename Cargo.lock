@@ -401,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "gitpulse"
-version = "0.5.0"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -409,6 +409,7 @@ dependencies = [
  "csv",
  "git2",
  "indicatif",
+ "regex",
  "serde",
  "serde_json",
  "tera",
