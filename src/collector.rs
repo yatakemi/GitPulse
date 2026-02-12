@@ -7,6 +7,61 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
+fn process_diff(_repo: &Repository, diff: &git2::Diff, config: &crate::config::Config, file_map: &mut std::collections::HashMap<String, usize>, file_paths: &mut Vec<String>) -> Result<(usize, usize, Vec<usize>)> {
+    let mut added = 0;
+    let mut deleted = 0;
+    let mut commit_files = std::collections::HashSet::new();
+
+    diff.foreach(&mut |delta, _float| {
+        // Skip binary files
+        if delta.flags().contains(git2::DiffFlags::BINARY) {
+            return true;
+        }
+
+        let old_path = delta.old_file().path().and_then(|p| p.to_str());
+        let new_path = delta.new_file().path().and_then(|p| p.to_str());
+
+        for path_opt in [old_path, new_path] {
+            if let Some(path) = path_opt {
+                if is_excluded(path, &config.exclude) {
+                    return true;
+                }
+                
+                let path_string = path.to_string();
+                let idx = if let Some(&i) = file_map.get(&path_string) {
+                    i
+                } else {
+                    let i = file_paths.len();
+                    file_paths.push(path_string.clone());
+                    file_map.insert(path_string, i);
+                    i
+                };
+                commit_files.insert(idx);
+            }
+        }
+        true
+    }, None, None, Some(&mut |delta, _hunk, line| {
+        // Double check exclusion at line level
+        let old_path = delta.old_file().path().and_then(|p| p.to_str());
+        let new_path = delta.new_file().path().and_then(|p| p.to_str());
+        
+        if let Some(path) = new_path.or(old_path) {
+            if is_excluded(path, &config.exclude) {
+                return true;
+            }
+        }
+
+        match line.origin() {
+            '+' => added += 1,
+            '-' => deleted += 1,
+            _ => {}
+        }
+        true
+    }))?;
+
+    Ok((added, deleted, commit_files.into_iter().collect()))
+}
+
 pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool, include_github: bool, no_cache: bool) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
@@ -86,47 +141,13 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let offset = chrono::FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
         let date = offset.timestamp_opt(time.seconds(), 0).unwrap();
 
-        let mut added = 0;
-        let mut deleted = 0;
-        let mut commit_files = Vec::new();
-
-        if commit.parent_count() == 0 {
+        let (added, deleted, commit_files) = if commit.parent_count() == 0 {
             // Initial commit
             if let Ok(tree) = commit.tree() {
                 let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
-                
-                // Manual line counting to support exclusions
-                diff.foreach(&mut |delta, _float| {
-                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                        if is_excluded(path, &config.exclude) {
-                            return true; // Skip this file
-                        }
-
-                        let path_string = path.to_string();
-                        let idx = if let Some(&i) = file_map.get(&path_string) {
-                            i
-                        } else {
-                            let i = file_paths.len();
-                            file_paths.push(path_string.clone());
-                            file_map.insert(path_string, i);
-                            i
-                        };
-                        commit_files.push(idx);
-                    }
-                    true
-                }, None, None, Some(&mut |delta, _hunk, line| {
-                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                        if is_excluded(path, &config.exclude) {
-                            return true;
-                        }
-                    }
-                    match line.origin() {
-                        '+' => added += 1,
-                        '-' => deleted += 1,
-                        _ => {}
-                    }
-                    true
-                }))?;
+                process_diff(&repo, &diff, config, &mut file_map, &mut file_paths)?
+            } else {
+                (0, 0, Vec::new())
             }
         } else {
             // Normal or Merge commit (compare with first parent)
@@ -134,40 +155,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             let tree = commit.tree()?;
             let parent_tree = parent.tree()?;
             let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
-            
-            // Manual line counting to support exclusions
-            diff.foreach(&mut |delta, _float| {
-                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                    if is_excluded(path, &config.exclude) {
-                        return true; // Skip this file
-                    }
-
-                    let path_string = path.to_string();
-                    let idx = if let Some(&i) = file_map.get(&path_string) {
-                        i
-                    } else {
-                        let i = file_paths.len();
-                        file_paths.push(path_string.clone());
-                        file_map.insert(path_string, i);
-                        i
-                    };
-                    commit_files.push(idx);
-                }
-                true
-            }, None, None, Some(&mut |delta, _hunk, line| {
-                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                    if is_excluded(path, &config.exclude) {
-                        return true;
-                    }
-                }
-                match line.origin() {
-                    '+' => added += 1,
-                    '-' => deleted += 1,
-                    _ => {}
-                }
-                true
-            }))?;
-        }
+            process_diff(&repo, &diff, config, &mut file_map, &mut file_paths)?
+        };
 
         let commit_message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
 
@@ -202,14 +191,25 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
 
 fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
     for pattern in exclude_patterns {
+        // 1. Directory prefix
         if pattern.ends_with('/') {
             if path.starts_with(pattern) {
                 return true;
             }
-        } else if path == pattern {
+        } 
+        // 2. Exact match
+        else if path == pattern {
             return true;
         }
-        // Basic glob support: handle * at the beginning or end
+        // 3. Filename match anywhere (if no slash in pattern)
+        else if !pattern.contains('/') {
+            let filename = path.split('/').last().unwrap_or("");
+            if filename == pattern {
+                return true;
+            }
+        }
+        
+        // 4. Basic glob support: handle * at the beginning or end
         if pattern.starts_with('*') && path.ends_with(&pattern[1..]) {
             return true;
         }

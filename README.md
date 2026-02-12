@@ -102,19 +102,22 @@ Exclude specific files or directories (like lock files or dependencies) from the
 ```toml
 # Files and directories to exclude from stats
 exclude = [
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "target/",
-    "node_modules/",
-    "vendor/*.c",
+    "pnpm-lock.yaml",   # Matches root pnpm-lock.yaml
+    "secret.txt",       # Matches any secret.txt in any directory (NEW!)
+    "target/",          # Matches everything inside target/ directory
+    "vendor/*.c",       # Matches files ending with .c in vendor/
+    "*.lock",           # Matches any file ending with .lock
 ]
 ```
 
 Exclusion supports:
-- **Exact match**: `pnpm-lock.yaml`
-- **Directory prefix**: `node_modules/` (excludes everything inside)
-- **Suffix wildcard**: `*.lock` (excludes files ending with .lock)
-- **Prefix wildcard**: `vendor/*` (excludes paths starting with vendor/)
+- **Filename match**: `secret.txt` (If the pattern has no `/`, it matches the filename in any directory)
+- **Exact match**: `path/to/file.txt` (Matches the specific path from the repository root)
+- **Directory prefix**: `node_modules/` (Excludes everything inside the directory)
+- **Suffix wildcard**: `*.lock` (Excludes files ending with .lock)
+- **Prefix wildcard**: `vendor/*` (Excludes paths starting with vendor/)
+
+**Note:** Binary files (images, executables, etc.) are automatically excluded from line counts.
 
 ## Advanced Analysis (v0.6+)
 
