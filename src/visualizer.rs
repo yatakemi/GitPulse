@@ -1,7 +1,5 @@
-use crate::model::CommitStats;
-use crate::html_template::HTML_TEMPLATE;
 use anyhow::{Context, Result};
-use chrono::{Datelike, Timelike};
+use chrono::Timelike;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::File;
@@ -26,9 +24,14 @@ pub fn visualize_stats(input_path: &Path, output_path: &Path, format: &str) -> R
     let mut report_data: crate::model::ReportData = serde_json::from_reader(reader).context("Failed to parse JSON")?;
     
     // Resize (Normalize) authors in commits
-    // Load config from current directory or repository root (basic assumption: current dir)
+    // Load config from current directory or repository root
     let config_path = Path::new("gitpulse.toml");
-    let config = crate::config::Config::load(config_path).unwrap_or_default();
+    let config = if config_path.exists() {
+        crate::config::Config::load(config_path)
+            .context(format!("Failed to parse config file: {:?}", config_path))?
+    } else {
+        crate::config::Config::default()
+    };
 
     for commit in &mut report_data.commits {
         commit.author = normalize_author(&commit.author, &commit.email, &config);

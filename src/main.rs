@@ -4,6 +4,7 @@ mod html_template;
 mod model;
 mod visualizer;
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -48,7 +49,12 @@ fn main() -> anyhow::Result<()> {
     match &cli.command {
         Commands::Collect { repo, out } => {
             let config_path = std::path::Path::new("gitpulse.toml");
-            let config = config::Config::load(config_path).unwrap_or_default();
+            let config = if config_path.exists() {
+                config::Config::load(config_path)
+                    .context(format!("Failed to parse config file: {:?}", config_path))?
+            } else {
+                config::Config::default()
+            };
             collector::collect_stats(repo, out, &config)?;
         }
         Commands::Visualize { data, out, format } => {
