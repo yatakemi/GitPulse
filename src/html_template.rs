@@ -6,6 +6,7 @@ pub const HTML_TEMPLATE: &str = r#"
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Git Productivity Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f8f9fa; color: #333; }
         h1 { text-align: center; margin-bottom: 30px; color: #2c3e50; }
