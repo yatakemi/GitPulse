@@ -338,7 +338,7 @@ pub const HTML_TEMPLATE: &str = r#"
              <div class="chart-box full-width">
                 <div class="chart-title">
                     <span data-i18n="chart_health">Team Health Trends</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_health" data-tooltip="Churn Rate & Avg Duration.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_health" data-tooltip="Red: Churn Rate (Rework). Calculated as 2 * min(added, deleted) / total changes. Purple: Avg Duration. Rising trend in both indicates technical debt or crunch.">i</span>
                 </div>
                 <canvas id="healthTrendChart"></canvas>
             </div>
@@ -430,7 +430,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_size: "Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review and more likely to contain bugs.",
                 tooltip_hotspots: "Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring or better tests.",
                 tooltip_duration: "Time between first and last commit of the day. NOTE: Not actual work hours, but indicates the span of activity. Long spans (>8h) consistently may suggest burnout risk.",
-                tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring. Purple: Avg Duration. Rising trend in both often indicates 'Technical Debt' or 'Crunch Time'.",
+                tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring. Calculated as 2 * min(added, deleted) / total changes. Purple: Avg Duration. Rising trend in both often indicates 'Technical Debt' or 'Crunch Time'.",
                 tooltip_ownership: "Shows who contributes to which files. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience and knowledge sharing.",
                 tooltip_leadtime: "Time span of merged branches (from first commit to merge). Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity and risk.",
                 tooltip_ctxswitch: "Number of distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work productivity.",
@@ -530,7 +530,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_size: "コミットサイズの内訳です。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唆します。",
                 tooltip_hotspots: "最も頻繁に変更されるファイルです。これらはアーキテクチャ上のボトルネック、「神クラス」、またはリファクタリングやテスト強化が必要な不安定なモジュールである可能性があります。",
                 tooltip_duration: "その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。",
-                tooltip_health: "赤: 手戻り率（Volatility）。高い＝不安定/リファクタリング中。紫: 平均活動幅。両方が上昇傾向にある場合は、技術負債やデスマーチの兆候である可能性が高いです。",
+                tooltip_health: "赤: 手戻り率（Volatility）。高い＝不安定/リファクタリング中。算出式: 2 * min(追加, 削除) / 総変更行数。紫: 平均活動幅。両方が上昇傾向にある場合は、技術負債やデスマーチの兆候である可能性が高いです。",
                 tooltip_ownership: "誰がどのファイルに貢献しているかを示します。1人だけが触っているファイルは『バス係数』のリスクです。バランスの良いオーナーシップは知識共有とチームの回復力を高めます。",
                 tooltip_leadtime: "マージされたブランチの寿命（最初のコミット〜マージ）。短いリードタイムは迅速なデリバリーを、長いリードタイムはマージの複雑化とリスク増大を示します。",
                 tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。",
@@ -934,13 +934,71 @@ pub const HTML_TEMPLATE: &str = r#"
             const displayDates = [];
             let curr = new Date(startDate);
             const end = new Date(endDate);
-            while (curr <= end) { displayDates.push(curr.toISOString().split('T')[0]); curr.setDate(curr.getDate() + 1); }
-            const churnRates = displayDates.map(date => { const dayData = filteredData.filter(d => d.dateStr === date); const changes = dayData.reduce((a, d) => a + d.total_changes, 0); const churn = dayData.reduce((a, d) => a + d.churn, 0); return changes > 0 ? (churn / changes) * 100 : 0; });
+            const dateMap = new Map();
+            
+            while (curr <= end) { 
+                const dStr = curr.toISOString().split('T')[0];
+                displayDates.push(dStr); 
+                dateMap.set(dStr, { changes: 0, churn: 0, durations: [] });
+                curr.setDate(curr.getDate() + 1); 
+            }
+
+            filteredData.forEach(d => {
+                if (dateMap.has(d.dateStr)) {
+                    const entry = dateMap.get(d.dateStr);
+                    entry.changes += d.total_changes;
+                    entry.churn += d.churn;
+                    if (d.hours && d.hours.length > 1) {
+                        entry.durations.push(Math.max(...d.hours) - Math.min(...d.hours));
+                    }
+                }
+            });
+
+            const churnRates = displayDates.map(d => {
+                const e = dateMap.get(d);
+                return e.changes > 0 ? (e.churn / e.changes) * 100 : 0;
+            });
+
+            const avgDurations = displayDates.map(d => {
+                const e = dateMap.get(d);
+                return e.durations.length > 0 ? e.durations.reduce((a, b) => a + b, 0) / e.durations.length : 0;
+            });
+
             if (healthChart) healthChart.destroy();
             healthChart = new Chart(healthCtx, {
                 type: 'line',
-                data: { labels: displayDates, datasets: [{ label: 'Churn Rate', data: calculateMovingAverage(churnRates, 7), borderColor: '#e74c3c', fill: true }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                data: {
+                    labels: displayDates,
+                    datasets: [
+                        {
+                            label: 'Churn Rate (%)',
+                            data: calculateMovingAverage(churnRates, 7),
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            fill: true,
+                            yAxisID: 'y',
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Avg Work Duration (Hours)',
+                            data: calculateMovingAverage(avgDurations, 7),
+                            borderColor: '#8e44ad',
+                            backgroundColor: 'rgba(142, 68, 173, 0.1)',
+                            fill: true,
+                            yAxisID: 'y1',
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Churn Rate (%)' } },
+                        y1: { beginAtZero: true, max: 24, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Hours' } }
+                    }
+                }
             });
         }
 

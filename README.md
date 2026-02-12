@@ -128,7 +128,9 @@ Identifies the top 20 most frequently modified files. Frequent changes to the sa
 
 ### 🧘 Work Habits & Team Health
 - **Est. Daily Work Duration**: Calculates the time span between the first and last commit of the day for each user. Helps identify potential burnout or unhealthy working hours.
-- **Code Churn (Volatility)**: Measures the ratio of "Rework" (edits to existing code) vs "New Work". High churn might indicate unclear requirements or technical debt.
+- **Code Churn (Volatility)**: Measures "Rework" (edits to existing code).
+    - **Calculation**: `Churn = (Added + Deleted) - abs(Added - Deleted)`. This is mathematically identical to `2 * min(Added, Deleted)`, representing the number of lines replaced in a commit.
+    - **Churn Rate**: `(Total Churn / Total Changes) * 100`. High churn might indicate unclear requirements, frequent refactoring, or technical debt.
 - **Health Trends**: A dedicated chart tracking Churn Rate and Work Duration over time to spot negative trends early.
 
 ### ℹ️ Interactive Explanations
