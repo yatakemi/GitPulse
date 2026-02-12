@@ -77,50 +77,10 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let mut deleted = 0;
         let mut commit_files = Vec::new();
 
-        if !is_merge {
-            if commit.parent_count() == 0 {
-                // Initial commit
-                if let Ok(tree) = commit.tree() {
-                    let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
-                    
-                    // Manual line counting to support exclusions
-                    diff.foreach(&mut |delta, _float| {
-                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                            if is_excluded(path, &config.exclude) {
-                                return true; // Skip this file
-                            }
-
-                            let path_string = path.to_string();
-                            let idx = if let Some(&i) = file_map.get(&path_string) {
-                                i
-                            } else {
-                                let i = file_paths.len();
-                                file_paths.push(path_string.clone());
-                                file_map.insert(path_string, i);
-                                i
-                            };
-                            commit_files.push(idx);
-                        }
-                        true
-                    }, None, None, Some(&mut |delta, _hunk, line| {
-                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                            if is_excluded(path, &config.exclude) {
-                                return true;
-                            }
-                        }
-                        match line.origin() {
-                            '+' => added += 1,
-                            '-' => deleted += 1,
-                            _ => {}
-                        }
-                        true
-                    }))?;
-                }
-            } else {
-                let parent = commit.parent(0)?;
-                let tree = commit.tree()?;
-                let parent_tree = parent.tree()?;
-                let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
+        if commit.parent_count() == 0 {
+            // Initial commit
+            if let Ok(tree) = commit.tree() {
+                let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
                 
                 // Manual line counting to support exclusions
                 diff.foreach(&mut |delta, _float| {
@@ -155,6 +115,45 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
                     true
                 }))?;
             }
+        } else {
+            // Normal or Merge commit (compare with first parent)
+            let parent = commit.parent(0)?;
+            let tree = commit.tree()?;
+            let parent_tree = parent.tree()?;
+            let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
+            
+            // Manual line counting to support exclusions
+            diff.foreach(&mut |delta, _float| {
+                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                    if is_excluded(path, &config.exclude) {
+                        return true; // Skip this file
+                    }
+
+                    let path_string = path.to_string();
+                    let idx = if let Some(&i) = file_map.get(&path_string) {
+                        i
+                    } else {
+                        let i = file_paths.len();
+                        file_paths.push(path_string.clone());
+                        file_map.insert(path_string, i);
+                        i
+                    };
+                    commit_files.push(idx);
+                }
+                true
+            }, None, None, Some(&mut |delta, _hunk, line| {
+                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                    if is_excluded(path, &config.exclude) {
+                        return true;
+                    }
+                }
+                match line.origin() {
+                    '+' => added += 1,
+                    '-' => deleted += 1,
+                    _ => {}
+                }
+                true
+            }))?;
         }
 
         let commit_message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
