@@ -1,10 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use crate::github::GitHubPR;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReportData {
     pub commits: Vec<CommitStats>,
     pub file_paths: Vec<String>,
+    pub github_prs: Vec<GitHubPR>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,6 +17,7 @@ pub struct DashboardData {
     pub daily_dir_counts: Vec<DirCount>,
     pub weekly_stats: Vec<WeeklyStat>,
     pub forecast: Option<ForecastData>,
+    pub github_prs: Vec<GitHubPR>,
     pub file_paths: Vec<String>,
 }
 

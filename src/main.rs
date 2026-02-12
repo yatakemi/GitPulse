@@ -1,5 +1,6 @@
 mod collector;
 mod config;
+mod github;
 mod html_template;
 mod model;
 mod visualizer;
@@ -30,6 +31,10 @@ enum Commands {
         /// Analyze only merge commits
         #[arg(short, long, default_value_t = false)]
         merges_only: bool,
+
+        /// Include GitHub review activity analysis
+        #[arg(short, long, default_value_t = false)]
+        github: bool,
     },
     /// Visualize stats from JSON to CSV or HTML
     Visualize {
@@ -51,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Collect { repo, out, merges_only } => {
+        Commands::Collect { repo, out, merges_only, github } => {
             let config_path = std::path::Path::new("gitpulse.toml");
             let config = if config_path.exists() {
                 config::Config::load(config_path)
@@ -59,7 +64,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 config::Config::default()
             };
-            collector::collect_stats(repo, out, &config, *merges_only)?;
+            collector::collect_stats(repo, out, &config, *merges_only, *github)?;
         }
         Commands::Visualize { data, out, format } => {
             visualizer::visualize_stats(data, out, format)?;

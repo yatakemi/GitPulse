@@ -300,12 +300,32 @@ pub const HTML_TEMPLATE: &str = r#"
                             <th data-i18n="header_added">Added</th>
                             <th data-i18n="header_deleted">Deleted</th>
                             <th data-i18n="header_total_changes">Total Changes</th>
+                            <th data-i18n="header_reviews">Reviews (Given)</th>
                             <th data-i18n="header_avg_lead_time">Avg Lead Time</th>
                             <th data-i18n="header_active_days">Active Days</th>
                             <th data-i18n="header_top_dirs">Top Dirs</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" id="githubSection" style="max-width: none; margin-bottom: 30px; display: none;">
+            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 15px; text-align: left;">🐙 GitHub Review Activity (Top 100 PRs)</h2>
+            <div class="table-container">
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>PR</th>
+                            <th>Author</th>
+                            <th>Status</th>
+                            <th>Reviews</th>
+                        </tr>
+                    </thead>
+                    <tbody id="githubTableBody">
                         <!-- Populated by JS -->
                     </tbody>
                 </table>
@@ -397,6 +417,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_longlived_desc: "{value} branch(es) lived longer than 7 days. Long-lived branches increase merge complexity and risk.",
                 header_active_days: "Active Days",
                 header_total_changes: "Total Changes",
+                header_reviews: "Reviews (Given)",
                 header_top_dirs: "Top Dirs",
                 header_avg_lead_time: "Avg Lead Time",
                 btn_select_all: "Select All",
@@ -492,6 +513,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_longlived_desc: "{value}個のブランチが7日以上存続しています。長命ブランチはマージの複雑さとリスクを増大させます。",
                 header_active_days: "稼働日数",
                 header_total_changes: "合計変更",
+                header_reviews: "レビュー回数",
                 header_top_dirs: "得意ディレクトリ",
                 header_avg_lead_time: "平均リードタイム",
                 btn_select_all: "すべて選択",
@@ -1672,7 +1694,8 @@ pub const HTML_TEMPLATE: &str = r#"
                         commits: 0, added: 0, deleted: 0,
                         activeDays: new Set(),
                         dirs: {},
-                        leadTimes: []
+                        leadTimes: [],
+                        reviewsGiven: 0
                     };
                 }
                 userStats[user].commits += d.commit_count;
@@ -1700,6 +1723,37 @@ pub const HTML_TEMPLATE: &str = r#"
                     userStats[me.author].leadTimes.push(me.days);
                 }
             });
+
+            // 4. GitHub Reviews
+            if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
+                document.getElementById('githubSection').style.display = 'block';
+                const ghTbody = document.getElementById('githubTableBody');
+                ghTbody.innerHTML = '';
+
+                dashboardData.github_prs.forEach(pr => {
+                    pr.reviews.forEach(rev => {
+                        if (userStats[rev.user]) {
+                            userStats[rev.user].reviewsGiven++;
+                        } else if (currentUsers.size > 0) {
+                            // Even if no commits, we might want to track reviewers
+                            // but for now we only track reviewers who are also committers in the current view
+                        }
+                    });
+
+                    const tr = document.createElement('tr');
+                    const reviewSummary = pr.reviews.map(r => 
+                        `<span class="badge" style="background: ${r.state === 'APPROVED' ? '#ecfaf2' : '#fdf2f2'}; color: ${r.state === 'APPROVED' ? '#27ae60' : '#e74c3c'}; font-size: 10px; padding: 2px 5px;">${r.user}</span>`
+                    ).join(' ');
+
+                    tr.innerHTML = `
+                        <td><a href="${pr.html_url}" target="_blank">#${pr.number} ${pr.title}</a></td>
+                        <td>${pr.author}</td>
+                        <td>${pr.reviews.length > 0 ? 'Reviewed' : 'Pending'}</td>
+                        <td>${reviewSummary}</td>
+                    `;
+                    ghTbody.appendChild(tr);
+                });
+            }
 
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
@@ -1734,6 +1788,7 @@ pub const HTML_TEMPLATE: &str = r#"
                     <td><span class="badge added">+${s.added.toLocaleString()}</span></td>
                     <td><span class="badge deleted">-${s.deleted.toLocaleString()}</span></td>
                     <td><strong>${s.totalChanges.toLocaleString()}</strong></td>
+                    <td>${s.reviewsGiven}</td>
                     <td>${s.avgLeadTime}${s.avgLeadTime !== '-' ? ' ' + t('label_days') : ''}</td>
                     <td>${s.activeDays.size}</td>
                     <td style="font-size: 12px; color: #666;">${s.topDirs || '-'}</td>

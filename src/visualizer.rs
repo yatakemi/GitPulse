@@ -278,6 +278,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         daily_dir_counts,
         weekly_stats,
         forecast,
+        github_prs: data.github_prs.clone(),
         file_paths: data.file_paths.clone(),
     }
 }
