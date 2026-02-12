@@ -10,6 +10,7 @@
 - 📊 **Interactive Dashboard**: Generates beautiful HTML reports with Chart.js.
     - **Timeline**: Visualize code changes (Added/Deleted) or commit counts over time.
     - **User Activity**: Deep dive into contributor metrics: **Total Changes**, **Avg Lead Time**, and **Top Directories** (AI-detected expertise).
+    - **GitHub Reviews**: Track review activity: **Reviews Given** per user and a detailed PR activity table.
     - **User Filtering**: Toggle specific users on/off to analyze subsets of the team. State preserved in URL.
     - **Trends**: 7-day moving average trend lines to see the big picture.
     - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
@@ -52,6 +53,10 @@ gitpulse collect --repo /path/to/repo --out stats.json
 
 # Analyze only merge commits
 gitpulse collect --merges-only --out merge_stats.json
+
+# Analyze with GitHub Review activity
+# Requires 'gh' CLI authenticated or GITHUB_TOKEN env var
+gitpulse collect --github --out stats_with_reviews.json
 ```
 
 ### 2. Visualize Data
@@ -127,6 +132,12 @@ Identifies the top 20 most frequently modified files. Frequent changes to the sa
 
 ### ℹ️ Interactive Explanations
 The dashboard includes tooltips (info icons) for each chart, explaining what to look for and how to interpret the data, making it easier for non-technical stakeholders to understand.
+
+### 🐙 GitHub Review Activity (v0.13.10+)
+When the `--github` flag is used, GitPulse fetches the last 100 Pull Requests and their reviews using the GitHub GraphQL API. 
+- **Reviews Given**: See who is contributing to the team through code reviews, not just code changes.
+- **PR Table**: A dedicated table showing recent PRs, their authors, and the reviewers who participated.
+- **Authentication**: Automatically uses `gh` CLI's token if available, otherwise falls back to the `GITHUB_TOKEN` environment variable.
 
 ## Architecture
 
