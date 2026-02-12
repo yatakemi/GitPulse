@@ -18,6 +18,11 @@ cargo test
 echo "🔍 Running verification script..."
 ./verify.sh
 
+echo "📦 Updating Cargo.toml version..."
+# Extract version number from tag (e.g., v0.13.12 -> 0.13.12)
+NEW_VERSION=${TAG_NAME#v}
+sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+
 echo "✅ All tests passed! Proceeding to commit..."
 
 # Stage all changes
