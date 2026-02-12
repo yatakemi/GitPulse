@@ -266,7 +266,7 @@ pub const HTML_TEMPLATE: &str = r#"
                     <div class="forecast-value" id="estCompletionValue">-</div>
                     <div class="goal-setter">
                         <span data-i18n="label_target_goal">Target Goal</span>
-                        <input type="number" id="targetGoalInput" value="1000" onchange="updatePredictiveDashboard()">
+                        <input type="number" id="targetGoalInput" value="1000" onchange="updateDashboard()">
                     </div>
                 </div>
             </div>
@@ -961,38 +961,137 @@ pub const HTML_TEMPLATE: &str = r#"
         }
 
         function updatePredictiveDashboard(filteredData) {
+            if (!filteredData) {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                filteredData = data.filter(d => d.dateStr >= startDate && d.dateStr <= endDate && selectedUsers.has(d.author));
+            }
+
             const weeklyStats = getWeeklyStats(filteredData);
             if (weeklyStats.length < 2) {
                 ['currentVelocityValue', 'velocityTrendValue', 'projectedThroughputValue', 'estCompletionValue'].forEach(id => document.getElementById(id).textContent = '-');
                 if (forecastChart) forecastChart.destroy();
                 return;
             }
-            const last4Weeks = weeklyStats.slice(-4);
-            const velocity = last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length;
-            document.getElementById('currentVelocityValue').textContent = `${velocity.toFixed(1)} commits/week`;
-            const projected = Math.round(velocity * (60/7));
-            document.getElementById('projectedThroughputValue').textContent = projected.toLocaleString();
-            updateForecastChart(weeklyStats, velocity);
+
+            const last4Weeks = weeklyStats.slice(-4).reverse();
+            const currentVelocity = last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length;
+            
+            // Trend
+            const recentAvg = (last4Weeks[0].commits + (last4Weeks[1] ? last4Weeks[1].commits : last4Weeks[0].commits)) / 2;
+            const prevAvg = last4Weeks.length >= 4 
+                ? (last4Weeks[2].commits + last4Weeks[3].commits) / 2
+                : (last4Weeks[2] ? last4Weeks[2].commits : recentAvg);
+            
+            const trend = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg) * 100 : 0;
+            const trendEl = document.getElementById('velocityTrendValue');
+            trendEl.textContent = `${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend).toFixed(1)}%`;
+            trendEl.className = `forecast-trend ${trend >= 0 ? 'up' : 'down'}`;
+
+            document.getElementById('currentVelocityValue').textContent = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week`;
+            
+            const projected60 = Math.round(currentVelocity * (60/7));
+            document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
+
+            // Goal Estimation
+            const targetGoal = parseInt(document.getElementById('targetGoalInput').value) || 1000;
+            const currentTotalCommits = filteredData.reduce((acc, d) => acc + d.commit_count, 0);
+            const remaining = targetGoal - currentTotalCommits;
+            
+            if (remaining > 0 && currentVelocity > 0) {
+                const weeksToGoal = remaining / currentVelocity;
+                const estDate = new Date();
+                estDate.setDate(estDate.getDate() + (weeksToGoal * 7));
+                document.getElementById('estCompletionValue').textContent = estDate.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                
+                // Add predictive insight
+                const insightsContainer = document.getElementById('insightsGrid');
+                const card = document.createElement('div');
+                card.className = 'insight-card positive';
+                card.innerHTML = `
+                    <div class="insight-icon">🎯</div>
+                    <div class="insight-body">
+                        <div class="insight-title">${t('insight_predicted_goal_title')}</div>
+                        <div class="insight-desc">${t('insight_predicted_goal_desc').replace('{target}', targetGoal).replace('{date}', estDate.toLocaleDateString())}</div>
+                    </div>
+                `;
+                insightsContainer.prepend(card);
+            } else {
+                document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Goal Reached!' : '-';
+            }
+
+            updateForecastChart(weeklyStats, currentVelocity);
         }
 
         function getWeeklyStats(filteredData) {
             const weeklyMap = {};
             filteredData.forEach(d => {
                 const date = new Date(d.dateStr);
-                const diff = date.getDate() - date.getDay() + (date.getDay() === 0 ? -6 : 1);
-                const monday = new Date(date.setDate(diff)).toISOString().split('T')[0];
-                if (!weeklyMap[monday]) weeklyMap[monday] = { week_start: monday, commits: 0 };
-                weeklyMap[monday].commits += d.commit_count;
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday
+                const monday = new Date(date.setDate(diff));
+                const weekStart = monday.toISOString().split('T')[0];
+                
+                if (!weeklyMap[weekStart]) {
+                    weeklyMap[weekStart] = { week_start: weekStart, commits: 0, added: 0, deleted: 0 };
+                }
+                weeklyMap[weekStart].commits += d.commit_count;
+                weeklyMap[weekStart].added += d.added;
+                weeklyMap[weekStart].deleted += d.deleted;
             });
             return Object.values(weeklyMap).sort((a, b) => a.week_start.localeCompare(b.week_start));
         }
 
-        function updateForecastChart(weeklyStats, velocity) {
+        function updateForecastChart(weeklyStats, currentVelocity) {
             if (forecastChart) forecastChart.destroy();
+
+            const labels = weeklyStats.map(w => w.week_start);
+            const dataPoint = weeklyStats.map(w => w.commits);
+            
+            // Projections (next 4 weeks)
+            const projectionLabels = [];
+            const projectionData = new Array(labels.length - 1).fill(null);
+            projectionData.push(dataPoint[dataPoint.length - 1]); // connector
+
+            const lastDate = new Date(labels[labels.length - 1]);
+            for (let i = 1; i <= 4; i++) {
+                const nextDate = new Date(lastDate);
+                nextDate.setDate(lastDate.getDate() + (i * 7));
+                const nextDateStr = nextDate.toISOString().split('T')[0];
+                labels.push(nextDateStr);
+                projectionData.push(currentVelocity);
+            }
+
             forecastChart = new Chart(forecastCtx, {
                 type: 'line',
-                data: { labels: weeklyStats.map(w => w.week_start), datasets: [{ label: 'Velocity', data: weeklyStats.map(w => w.commits), borderColor: '#3498db', fill: true }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: t('forecast_chart_title') + ' (History)',
+                            data: dataPoint,
+                            borderColor: '#3498db',
+                            backgroundColor: '#3498db22',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: t('forecast_chart_title') + ' (Projected)',
+                            data: projectionData,
+                            borderColor: '#3498db',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: t('header_commits') } }
+                    }
+                }
             });
         }
 
