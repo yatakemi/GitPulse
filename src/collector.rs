@@ -191,6 +191,15 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
 
 fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
     for pattern in exclude_patterns {
+        // 0. Handle root-relative patterns (starting with /)
+        if pattern.starts_with('/') {
+            let root_pattern = &pattern[1..];
+            if path == root_pattern {
+                return true;
+            }
+            continue;
+        }
+
         // 1. Directory prefix
         if pattern.ends_with('/') {
             if path.starts_with(pattern) {
@@ -218,4 +227,45 @@ fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_excluded() {
+        let exclude = vec![
+            "target/".to_string(),
+            "*.lock".to_string(),
+            "secret.txt".to_string(),
+            "vendor/*".to_string(),
+            "/README.md".to_string(),
+        ];
+
+        // Directory prefix
+        assert!(is_excluded("target/debug/main", &exclude));
+        assert!(is_excluded("target/release/gitpulse", &exclude));
+        assert!(!is_excluded("src/target/file", &exclude));
+
+        // Suffix wildcard
+        assert!(is_excluded("Cargo.lock", &exclude));
+        assert!(is_excluded("package-lock.json.lock", &exclude));
+        assert!(!is_excluded("lock.txt", &exclude));
+
+        // Filename match anywhere (no slash in pattern)
+        assert!(is_excluded("secret.txt", &exclude));
+        assert!(is_excluded("src/secret.txt", &exclude));
+        assert!(is_excluded("deep/nesting/secret.txt", &exclude));
+        assert!(!is_excluded("my_secret.txt", &exclude));
+
+        // Prefix wildcard
+        assert!(is_excluded("vendor/lib.c", &exclude));
+        assert!(is_excluded("vendor/sub/file", &exclude));
+        assert!(!is_excluded("src/vendor/file", &exclude));
+
+        // Root-relative exact match (starts with /)
+        assert!(is_excluded("README.md", &exclude));
+        assert!(!is_excluded("docs/README.md", &exclude));
+    }
 }

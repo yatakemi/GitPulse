@@ -102,8 +102,9 @@ Exclude specific files or directories (like lock files or dependencies) from the
 ```toml
 # Files and directories to exclude from stats
 exclude = [
+    "/README.md",       # Matches only root README.md (NEW!)
     "pnpm-lock.yaml",   # Matches root pnpm-lock.yaml
-    "secret.txt",       # Matches any secret.txt in any directory (NEW!)
+    "secret.txt",       # Matches any secret.txt in any directory
     "target/",          # Matches everything inside target/ directory
     "vendor/*.c",       # Matches files ending with .c in vendor/
     "*.lock",           # Matches any file ending with .lock
@@ -111,6 +112,7 @@ exclude = [
 ```
 
 Exclusion supports:
+- **Root-relative match**: `/README.md` (If the pattern starts with `/`, it matches exactly from the repository root)
 - **Filename match**: `secret.txt` (If the pattern has no `/`, it matches the filename in any directory)
 - **Exact match**: `path/to/file.txt` (Matches the specific path from the repository root)
 - **Directory prefix**: `node_modules/` (Excludes everything inside the directory)

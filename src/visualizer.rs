@@ -99,6 +99,37 @@ fn normalize_author(name: &str, email: &str, config: &crate::config::Config) -> 
     name.to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_normalize_author() {
+        let mut alias = HashMap::new();
+        alias.insert("alice@example.com".to_string(), "Alice".to_string());
+        alias.insert("Bob_Work".to_string(), "Bob".to_string());
+        
+        let config = crate::config::Config {
+            alias,
+            exclude: vec![],
+        };
+
+        // Alias by email
+        assert_eq!(normalize_author("Alice P", "alice@example.com", &config), "Alice");
+        
+        // Alias by name
+        assert_eq!(normalize_author("Bob_Work", "bob@corp.com", &config), "Bob");
+        
+        // GitHub noreply
+        assert_eq!(normalize_author("yatakemi", "12345+yatakemi@users.noreply.github.com", &config), "yatakemi");
+        assert_eq!(normalize_author("unknown", "999+someone@users.noreply.github.com", &config), "someone");
+
+        // No match
+        assert_eq!(normalize_author("Charlie", "charlie@gmail.com", &config), "Charlie");
+    }
+}
+
 fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
     let mut wtr = csv::Writer::from_path(output_path)?;
     for stat in stats {
