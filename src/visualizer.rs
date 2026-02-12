@@ -1,7 +1,7 @@
 use crate::model::CommitStats;
 use crate::html_template::HTML_TEMPLATE;
 use anyhow::{Context, Result};
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, Timelike};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::File;
@@ -107,12 +107,107 @@ fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
 }
 
 fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()> {
+    let dashboard_data = aggregate_dashboard_data(data);
     let mut context = TeraContext::new();
-    context.insert("data", data); // Now passing ReportData object
+    context.insert("data", &dashboard_data);
     let rendered = Tera::one_off(crate::html_template::HTML_TEMPLATE, &context, false)
         .context("Failed to render HTML template")?;
     let mut file = File::create(output_path)?;
     file.write_all(rendered.as_bytes())?;
     println!("Exported HTML to {:?}", output_path);
     Ok(())
+}
+
+fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::DashboardData {
+    use std::collections::{HashMap, HashSet};
+    use crate::model::{DailyStat, FileStat, MergeEvent};
+
+    let mut daily_map: HashMap<(String, String), DailyStat> = HashMap::new();
+    let mut file_map: HashMap<(usize, String), usize> = HashMap::new();
+    let mut merge_events = Vec::new();
+    let mut daily_dirs: HashMap<String, HashSet<String>> = HashMap::new();
+
+    // Grouping commits for merge time calculation
+    let mut non_merge_commits = data.commits.clone();
+    non_merge_commits.retain(|c| !c.is_merge);
+    non_merge_commits.sort_by(|a, b| a.date.cmp(&b.date));
+
+    for commit in &data.commits {
+        let date_str = commit.date.date_naive().format("%Y-%m-%d").to_string();
+        let hour = commit.date.hour();
+        let total = commit.added + commit.deleted;
+        let churn = (commit.added + commit.deleted) as i64 - (commit.added as i64 - commit.deleted as i64).abs();
+        let churn = churn as usize;
+
+        // Daily stats
+        let key = (date_str.clone(), commit.author.clone());
+        let stat = daily_map.entry(key).or_insert(DailyStat {
+            date: date_str.clone(),
+            author: commit.author.clone(),
+            added: 0,
+            deleted: 0,
+            commits: 0,
+            churn: 0,
+            hours: Vec::new(),
+            commit_sizes: Vec::new(),
+        });
+        stat.added += commit.added;
+        stat.deleted += commit.deleted;
+        stat.commits += 1;
+        stat.churn += churn;
+        stat.hours.push(hour);
+        stat.commit_sizes.push(total);
+
+        // File stats and directory tracking
+        let day_dir_set = daily_dirs.entry(date_str.clone()).or_insert(HashSet::new());
+        for &file_idx in &commit.files {
+            let file_key = (file_idx, commit.author.clone());
+            *file_map.entry(file_key).or_insert(0) += 1;
+
+            if let Some(path) = data.file_paths.get(file_idx) {
+                let dir = if let Some(pos) = path.find('/') {
+                    &path[..pos]
+                } else {
+                    "(root)"
+                };
+                day_dir_set.insert(dir.to_string());
+            }
+        }
+
+        // Merge events
+        if commit.is_merge {
+            if let Some(branch_match) = regex::Regex::new(r"(?i)Merge\s+(?:branch|pull request)\s+'?([^'\s]+)'?")
+                .ok()
+                .and_then(|re| re.captures(&commit.message))
+            {
+                let branch_name = branch_match.get(1).map_or("", |m| m.as_str()).to_string();
+                
+                // Find nearest predecessor non-merge commit (simple approximation)
+                if let Some(pos) = non_merge_commits.iter().rposition(|c| c.date < commit.date) {
+                    let pred = &non_merge_commits[pos];
+                    let duration = commit.date.signed_duration_since(pred.date);
+                    let days = duration.num_days().max(1) as u32;
+                    if days <= 90 {
+                        merge_events.push(MergeEvent {
+                            branch: branch_name,
+                            days,
+                            date: date_str,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    let daily_dir_counts = daily_dirs.into_iter()
+        .map(|(date, dirs)| crate::model::DirCount { date, count: dirs.len() })
+        .collect();
+
+    crate::model::DashboardData {
+        daily_stats: daily_map.into_values().collect(),
+        file_stats: file_map.into_iter().map(|((f, a), c)| FileStat { file_idx: f, author: a, count: c }).collect(),
+        merge_events,
+        daily_dir_counts,
+        file_paths: data.file_paths.clone(),
+    }
 }

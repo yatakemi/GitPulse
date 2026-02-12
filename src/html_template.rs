@@ -504,25 +504,18 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             updateDashboard();
         }
 
-        const reportData = {{ data | json_encode() | safe }};
-        const rawCommits = reportData.commits;
-        const filePaths = reportData.file_paths;
+        const dashboardData = {{ data | json_encode() | safe }};
+        const filePaths = dashboardData.file_paths;
         
-        // ... (existing preprocessing) ...
-        const data = rawCommits.map(d => {
+        const data = dashboardData.daily_stats.map(d => {
             const dateObj = new Date(d.date);
-            const churn = (d.added + d.deleted) - Math.abs(d.added - d.deleted);
             return {
                 ...d,
                 dateObj: dateObj,
-                dateStr: dateObj.toISOString().split('T')[0],
+                dateStr: d.date,
                 dayOfWeek: dateObj.getDay(),
-                hour: dateObj.getHours(),
                 total_changes: d.added + d.deleted,
-                commit_count: 1,
-                is_merge: d.is_merge || false,
-                files: d.files || [],
-                churn: churn
+                commit_count: d.commits
             };
         });
 
@@ -585,12 +578,12 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             updateDayOfWeekChart(filteredData, metric);
             updateHeatmapChart(filteredData, metric);
             updateSizeDistChart(filteredData);
-            updateHotspotsChart(filteredData);
+            updateHotspotsChart(filteredData, startDate, endDate);
             updateWorkDurationChart(filteredData);
             updateHealthTrendChart(filteredData, startDate, endDate);
-            updateOwnershipChart(filteredData);
-            updateLeadTimeChart(filteredData);
-            updateContextSwitchChart(filteredData);
+            updateOwnershipChart(filteredData, startDate, endDate);
+            updateLeadTimeChart(filteredData, startDate, endDate);
+            updateContextSwitchChart(filteredData, startDate, endDate);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
         }
@@ -606,33 +599,29 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             // Helper
             function addInsight(severity, icon, titleKey, descKey, values) {
                 let desc = t(descKey);
-                Object.entries(values).forEach(([k, v]) => {
+                Object.entries(values || {}).forEach(([k, v]) => {
                     desc = desc.replace(`{${k}}`, v);
                 });
                 insights.push({ severity, icon, title: t(titleKey), desc });
             }
 
-            // --- Rule 1: Burnout Risk (avg work span > 8h in last 7 days) ---
+            // --- Rule 1: Burnout Risk ---
             const recentDates = [...new Set(filteredData.map(d => d.dateStr))].sort().slice(-7);
-            const userDailySpans = new Map();
-            filteredData.filter(d => recentDates.includes(d.dateStr)).forEach(d => {
-                const key = `${d.dateStr}-${d.author}`;
-                if (!userDailySpans.has(key)) userDailySpans.set(key, { min: 24, max: 0, count: 0 });
-                const s = userDailySpans.get(key);
-                if (d.hour < s.min) s.min = d.hour;
-                if (d.hour > s.max) s.max = d.hour;
-                s.count++;
-            });
             let totalSpan = 0, spanCount = 0;
-            userDailySpans.forEach(s => {
-                if (s.count > 1) { totalSpan += (s.max - s.min); spanCount++; }
+            filteredData.filter(d => recentDates.includes(d.dateStr)).forEach(d => {
+                if (d.hours && d.hours.length > 1) {
+                    const min = Math.min(...d.hours);
+                    const max = Math.max(...d.hours);
+                    totalSpan += (max - min);
+                    spanCount++;
+                }
             });
             const avgSpan = spanCount > 0 ? totalSpan / spanCount : 0;
             if (avgSpan > 8) {
                 addInsight('warning', '🔥', 'insight_burnout_title', 'insight_burnout_desc', { value: avgSpan.toFixed(1) });
             }
 
-            // --- Rule 2: Code Instability (Churn Rate > 50%) ---
+            // --- Rule 2: Code Instability ---
             const totalChanges = filteredData.reduce((a, d) => a + d.total_changes, 0);
             const totalChurn = filteredData.reduce((a, d) => a + d.churn, 0);
             const churnRate = totalChanges > 0 ? (totalChurn / totalChanges) * 100 : 0;
@@ -640,32 +629,37 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 addInsight('warning', '📉', 'insight_unstable_title', 'insight_unstable_desc', { value: churnRate.toFixed(1) });
             }
 
-            // --- Rule 3: Bus Factor (top contributor > 70%) ---
+            // --- Rule 3: Bus Factor ---
             const userCommits = {};
-            filteredData.forEach(d => { userCommits[d.author] = (userCommits[d.author] || 0) + 1; });
-            const totalCommits = filteredData.length;
+            filteredData.forEach(d => { userCommits[d.author] = (userCommits[d.author] || 0) + d.commit_count; });
+            const allCommitsCount = Object.values(userCommits).reduce((a, b) => a + b, 0);
             const sortedUsers = Object.entries(userCommits).sort((a, b) => b[1] - a[1]);
-            if (sortedUsers.length > 0) {
-                const topShare = (sortedUsers[0][1] / totalCommits) * 100;
+            if (sortedUsers.length > 0 && allCommitsCount > 0) {
+                const topShare = (sortedUsers[0][1] / allCommitsCount) * 100;
                 if (topShare > 70) {
                     addInsight('warning', '🚌', 'insight_busfactor_title', 'insight_busfactor_desc', { name: sortedUsers[0][0], value: topShare.toFixed(0) });
                 }
             }
 
-            // --- Rule 4: Large Commits (XL > 20%) ---
-            const xlCount = filteredData.filter(d => d.total_changes > 500).length;
+            // --- Rule 4: Large Commits ---
+            let xlCount = 0, totalCommits = 0;
+            filteredData.forEach(d => {
+                xlCount += d.commit_sizes.filter(s => s > 500).length;
+                totalCommits += d.commit_count;
+            });
             const xlPct = totalCommits > 0 ? (xlCount / totalCommits) * 100 : 0;
             if (xlPct > 20) {
                 addInsight('info', '📦', 'insight_largecommit_title', 'insight_largecommit_desc', { value: xlPct.toFixed(0) });
             }
 
-            // --- Rule 5: Hotspot Concentration (Top 3 files > 30%) ---
+            // --- Rule 5: Hotspot Concentration ---
+            const filteredAuthors = new Set(filteredData.map(d => d.author));
             const fileCounts = {};
-            filteredData.forEach(d => {
-                (d.files || []).forEach(fIdx => {
-                    const fName = filePaths[fIdx] || fIdx;
-                    fileCounts[fName] = (fileCounts[fName] || 0) + 1;
-                });
+            dashboardData.file_stats.forEach(fs => {
+                if (filteredAuthors.has(fs.author)) {
+                    const fName = filePaths[fs.file_idx] || fs.file_idx;
+                    fileCounts[fName] = (fileCounts[fName] || 0) + fs.count;
+                }
             });
             const sortedFiles = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]);
             const totalFileMods = Object.values(fileCounts).reduce((a, b) => a + b, 0);
@@ -677,21 +671,24 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 }
             }
 
-            // --- Rule 6: Weekend Work (> 15%) ---
-            const weekendCount = filteredData.filter(d => d.dayOfWeek === 0 || d.dayOfWeek === 6).length;
-            const weekendPct = totalCommits > 0 ? (weekendCount / totalCommits) * 100 : 0;
+            // --- Rule 6: Weekend Work ---
+            const weekendCommits = filteredData.filter(d => d.dayOfWeek === 0 || d.dayOfWeek === 6).reduce((a, d) => a + d.commit_count, 0);
+            const weekendPct = totalCommits > 0 ? (weekendCommits / totalCommits) * 100 : 0;
             if (weekendPct > 15) {
                 addInsight('warning', '📅', 'insight_weekend_title', 'insight_weekend_desc', { value: weekendPct.toFixed(0) });
             }
 
-            // --- Rule 7: Late Night Activity (22-5h > 20%) ---
-            const lateCount = filteredData.filter(d => d.hour >= 22 || d.hour < 5).length;
+            // --- Rule 7: Late Night Activity ---
+            let lateCount = 0;
+            filteredData.forEach(d => {
+                lateCount += d.hours.filter(h => h >= 22 || h < 5).length;
+            });
             const latePct = totalCommits > 0 ? (lateCount / totalCommits) * 100 : 0;
             if (latePct > 20) {
                 addInsight('warning', '🌙', 'insight_latenight_title', 'insight_latenight_desc', { value: latePct.toFixed(0) });
             }
 
-            // --- Rule 8: Stable Pace (active > 60% of days & churn < 30%) ---
+            // --- Rule 8: Stable Pace ---
             const start = new Date(startDate);
             const end = new Date(endDate);
             const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
@@ -701,21 +698,24 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 addInsight('positive', '✅', 'insight_stable_title', 'insight_stable_desc', { value: activePct.toFixed(0) });
             }
 
-            // --- Rule 9: Small Commit Habits (XS+S > 70%) ---
-            const smallCount = filteredData.filter(d => d.total_changes <= 50).length;
+            // --- Rule 9: Small Commit Habits ---
+            let smallCount = 0;
+            filteredData.forEach(d => {
+                smallCount += d.commit_sizes.filter(s => s <= 50).length;
+            });
             const smallPct = totalCommits > 0 ? (smallCount / totalCommits) * 100 : 0;
             if (smallPct > 70) {
                 addInsight('positive', '✅', 'insight_smallcommit_title', 'insight_smallcommit_desc', { value: smallPct.toFixed(0) });
             }
 
-            // --- Rule 10: Isolated Files (files with only 1 contributor) ---
+            // --- Rule 10: Isolated Files ---
             const fileOwners = {};
-            filteredData.forEach(d => {
-                (d.files || []).forEach(fIdx => {
-                    const fName = filePaths[fIdx] || fIdx;
+            dashboardData.file_stats.forEach(fs => {
+                if (filteredAuthors.has(fs.author)) {
+                    const fName = filePaths[fs.file_idx] || fs.file_idx;
                     if (!fileOwners[fName]) fileOwners[fName] = new Set();
-                    fileOwners[fName].add(d.author);
-                });
+                    fileOwners[fName].add(fs.author);
+                }
             });
             const isolatedCount = Object.values(fileOwners).filter(s => s.size === 1).length;
             const totalFilesCount = Object.keys(fileOwners).length;
@@ -723,39 +723,17 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 addInsight('info', '📋', 'insight_isolated_title', 'insight_isolated_desc', { value: isolatedCount });
             }
 
-            // --- Rule 11: Frequent Context Switching (avg dirs > 3) ---
-            const dayDirMap = {}; 
-            filteredData.forEach(d => {
-                if (!dayDirMap[d.dateStr]) dayDirMap[d.dateStr] = new Set();
-                (d.files || []).forEach(fIdx => {
-                    const fName = filePaths[fIdx] || '';
-                    const dir = fName.includes('/') ? fName.split('/')[0] : '(root)';
-                    dayDirMap[d.dateStr].add(dir);
-                });
-            });
-            const datesArr = Object.keys(dayDirMap);
-            const avgDirs = datesArr.length > 0 ? Object.values(dayDirMap).reduce((a, b) => a + b.size, 0) / datesArr.length : 0;
+            // --- Rule 11: Frequent Context Switching ---
+            const relevantDirCounts = dashboardData.daily_dir_counts.filter(dc => dc.date >= startDate && dc.date <= endDate);
+            const avgDirs = relevantDirCounts.length > 0 ? relevantDirCounts.reduce((a, b) => a + b.count, 0) / relevantDirCounts.length : 0;
             if (avgDirs > 3) {
                 addInsight('warning', '🔀', 'insight_ctxswitch_title', 'insight_ctxswitch_desc', { value: avgDirs.toFixed(1) });
             }
 
-            // --- Rule 12: Long-lived Branches (> 7 days) ---
-            const mergeCommits = filteredData.filter(d => d.is_merge && d.message);
-            let longLivedCount = 0;
-            mergeCommits.forEach(mc => {
-                const match = mc.message.match(/Merge\s+(?:branch|pull request)\s+'?([^'"\s]+)'?/i);
-                if (!match) return;
-                const mergeDate = new Date(mc.date);
-                const parentCommits = filteredData.filter(d => 
-                    !d.is_merge && 
-                    new Date(d.date) <= mergeDate && 
-                    new Date(d.date) >= new Date(mergeDate.getTime() - 90 * 86400000)
-                );
-                if (parentCommits.length > 0) {
-                    const daysDiff = (mergeDate - new Date(parentCommits[parentCommits.length - 1].date)) / 86400000;
-                    if (daysDiff > 7) longLivedCount++;
-                }
-            });
+            // --- Rule 12: Long-lived Branches ---
+            const longLivedCount = dashboardData.merge_events.filter(me => 
+                me.date >= startDate && me.date <= endDate && me.days > 7
+            ).length;
             if (longLivedCount > 0) {
                 addInsight('warning', '🔄', 'insight_longlived_title', 'insight_longlived_desc', { value: longLivedCount });
             }
@@ -780,20 +758,19 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             }
         }
 
-        function updateOwnershipChart(filteredData) {
+        function updateOwnershipChart(filteredData, startDate, endDate) {
             if (ownerChart) ownerChart.destroy();
 
-            // Build file -> { user -> count } map
+            const filteredAuthors = new Set(filteredData.map(d => d.author));
             const fileUserMap = {};
-            filteredData.forEach(d => {
-                (d.files || []).forEach(fIdx => {
-                    const fName = filePaths[fIdx] || `file_${fIdx}`;
+            dashboardData.file_stats.forEach(fs => {
+                if (filteredAuthors.has(fs.author)) {
+                    const fName = filePaths[fs.file_idx] || `file_${fs.file_idx}`;
                     if (!fileUserMap[fName]) fileUserMap[fName] = {};
-                    fileUserMap[fName][d.author] = (fileUserMap[fName][d.author] || 0) + 1;
-                });
+                    fileUserMap[fName][fs.author] = (fileUserMap[fName][fs.author] || 0) + fs.count;
+                }
             });
 
-            // Sort files by total modifications, take top 15
             const fileTotals = Object.entries(fileUserMap).map(([f, users]) => ({
                 file: f,
                 total: Object.values(users).reduce((a, b) => a + b, 0),
@@ -837,46 +814,19 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             });
         }
 
-        function updateLeadTimeChart(filteredData) {
+        function updateLeadTimeChart(filteredData, startDate, endDate) {
             if (leadChart) leadChart.destroy();
 
-            // Find merge commits and extract branch names
-            const mergeCommits = filteredData.filter(d => d.is_merge && d.message);
-            const branches = [];
+            const branches = dashboardData.merge_events
+                .filter(me => me.date >= startDate && me.date <= endDate)
+                .map(me => ({
+                    name: me.branch.length > 25 ? me.branch.substring(0, 22) + '...' : me.branch,
+                    days: me.days,
+                    mergeDate: me.date
+                }))
+                .slice(0, 15).reverse();
 
-            mergeCommits.forEach(mc => {
-                // Match "Merge branch 'xxx'" or "Merge branch 'xxx' into yyy"
-                const match = mc.message.match(/Merge\s+(?:branch|pull request)\s+'?([^'"\s]+)'?/i);
-                if (!match) return;
-                const branchName = match[1];
-                const mergeDate = new Date(mc.date);
-
-                // Find the earliest non-merge commit closest before this merge
-                // Use the parent commits' time range as approximation
-                const parentCommits = filteredData.filter(d =>
-                    !d.is_merge &&
-                    new Date(d.date) <= mergeDate &&
-                    new Date(d.date) >= new Date(mergeDate.getTime() - 90 * 86400000) // within 90 days
-                );
-
-                if (parentCommits.length === 0) return;
-
-                // Estimate: look for commits by same author within a reasonable timeframe
-                const daysDiff = Math.max(1, Math.round(
-                    (mergeDate - new Date(parentCommits[parentCommits.length - 1].date)) / 86400000
-                ));
-
-                branches.push({
-                    name: branchName.length > 25 ? branchName.substring(0, 22) + '...' : branchName,
-                    days: Math.min(daysDiff, 90),
-                    mergeDate: mc.dateStr
-                });
-            });
-
-            // Take last 15 branches
-            const recentBranches = branches.slice(0, 15).reverse();
-
-            if (recentBranches.length === 0) {
+            if (branches.length === 0) {
                 leadChart = new Chart(leadCtx, {
                     type: 'bar',
                     data: { labels: [t('label_branch')], datasets: [{ data: [0], backgroundColor: '#bdc3c7' }] },
@@ -891,15 +841,15 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 return;
             }
 
-            const colors = recentBranches.map(b => b.days > 7 ? '#e74c3c99' : b.days > 3 ? '#f39c1299' : '#27ae6099');
+            const colors = branches.map(b => b.days > 7 ? '#e74c3c99' : b.days > 3 ? '#f39c1299' : '#27ae6099');
 
             leadChart = new Chart(leadCtx, {
                 type: 'bar',
                 data: {
-                    labels: recentBranches.map(b => b.name),
+                    labels: branches.map(b => b.name),
                     datasets: [{
                         label: t('label_leadtime_days'),
-                        data: recentBranches.map(b => b.days),
+                        data: branches.map(b => b.days),
                         backgroundColor: colors,
                         borderWidth: 0
                     }]
@@ -923,22 +873,15 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             });
         }
 
-        function updateContextSwitchChart(filteredData) {
+        function updateContextSwitchChart(filteredData, startDate, endDate) {
             if (ctxChart) ctxChart.destroy();
 
-            // For each day, count unique top-level directories per user
-            const dayDirMap = {}; // dateStr -> Set of dirs
-            filteredData.forEach(d => {
-                if (!dayDirMap[d.dateStr]) dayDirMap[d.dateStr] = new Set();
-                (d.files || []).forEach(fIdx => {
-                    const fName = filePaths[fIdx] || '';
-                    const dir = fName.includes('/') ? fName.split('/')[0] : '(root)';
-                    dayDirMap[d.dateStr].add(dir);
-                });
-            });
+            const relevantCounts = dashboardData.daily_dir_counts
+                .filter(dc => dc.date >= startDate && dc.date <= endDate)
+                .sort((a, b) => a.date.localeCompare(b.date));
 
-            const dates = Object.keys(dayDirMap).sort();
-            const dirCounts = dates.map(d => dayDirMap[d].size);
+            const dates = relevantCounts.map(dc => dc.date);
+            const dirCounts = relevantCounts.map(dc => dc.count);
 
             if (dates.length === 0) return;
 
@@ -970,7 +913,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
 
         function updateHealthTrendChart(filteredData, startDate, endDate) {
             // Generate dense date list
-            const dateMap = new Map(); // date -> { total_changes: 0, total_churn: 0, user_stats: { user: { min: 24, max: 0 } } }
+            const dateMap = new Map();
             let curr = new Date(startDate);
             const end = new Date(endDate);
             const displayDates = [];
@@ -981,7 +924,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 dateMap.set(dStr, { 
                     total_changes: 0, 
                     total_churn: 0,
-                    user_times: {} 
+                    durations: [] 
                 });
                 curr.setDate(curr.getDate() + 1);
             }
@@ -993,11 +936,9 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 daily.total_changes += d.total_changes;
                 daily.total_churn += d.churn;
                 
-                if (!daily.user_times[d.author]) daily.user_times[d.author] = { min: 24, max: 0, count: 0 };
-                const uStats = daily.user_times[d.author];
-                if (d.hour < uStats.min) uStats.min = d.hour;
-                if (d.hour > uStats.max) uStats.max = d.hour;
-                uStats.count++;
+                if (d.hours && d.hours.length > 1) {
+                    daily.durations.push(Math.max(...d.hours) - Math.min(...d.hours));
+                }
             });
 
             // Calculate metrics per day
@@ -1014,15 +955,9 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 churnRates.push(rate);
 
                 // 2. Avg Duration
-                let totalDuration = 0;
-                let activeUsers = 0;
-                Object.values(stats.user_times).forEach(u => {
-                    if (u.count > 1) { // Needs start and end
-                        totalDuration += (u.max - u.min);
-                        activeUsers++;
-                    }
-                });
-                const avgDur = activeUsers > 0 ? (totalDuration / activeUsers) : 0;
+                const avgDur = stats.durations.length > 0
+                    ? stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length
+                    : 0;
                 avgDurations.push(avgDur);
             });
 
@@ -1039,7 +974,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                         {
                             label: 'Churn Rate (%)',
                             data: churnTrend,
-                            borderColor: '#e74c3c', // Red
+                            borderColor: '#e74c3c',
                             backgroundColor: 'rgba(231, 76, 60, 0.1)',
                             yAxisID: 'y',
                             tension: 0.4,
@@ -1050,7 +985,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                         {
                             label: 'Avg Work Duration (Hours)',
                             data: durTrend,
-                            borderColor: '#8e44ad', // Purple
+                            borderColor: '#8e44ad',
                             backgroundColor: 'rgba(142, 68, 173, 0.1)',
                             yAxisID: 'y1',
                             tension: 0.4,
@@ -1061,30 +996,20 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
                         x: { display: true },
                         y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
+                            type: 'linear', display: true, position: 'left',
                             title: { display: true, text: 'Churn Rate (%)' },
-                            beginAtZero: true,
-                            max: 100
+                            beginAtZero: true, max: 100
                         },
                         y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
+                            type: 'linear', display: true, position: 'right',
                             title: { display: true, text: 'Hours' },
                             grid: { drawOnChartArea: false },
-                            beginAtZero: true,
-                            max: 24
+                            beginAtZero: true, max: 24
                         }
                     },
                     plugins: {
@@ -1092,12 +1017,8 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                             callbacks: {
                                 label: function(context) {
                                     let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y.toFixed(1);
-                                    }
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) label += context.parsed.y.toFixed(1);
                                     return label;
                                 }
                             }
@@ -1109,16 +1030,13 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
 
         function updateSummary(currentData, metric, startDate, endDate) {
             const currentTotal = currentData.reduce((acc, d) => acc + d[metric], 0);
-            const mergeTotal = currentData.filter(d => d.is_merge).length;
             const activeDays = new Set(currentData.map(d => d.dateStr)).size;
             const avgPerDay = activeDays > 0 ? (currentTotal / activeDays).toFixed(1) : 0;
             
-            // Calculate Global Churn Rate: (Total Churn / Total Changes) * 100
             const totalChanges = currentData.reduce((acc, d) => acc + d.total_changes, 0);
             const totalChurn = currentData.reduce((acc, d) => acc + d.churn, 0);
             const churnRate = totalChanges > 0 ? ((totalChurn / totalChanges) * 100).toFixed(1) : 0;
 
-            // Previous period calc
             const start = new Date(startDate);
             const end = new Date(endDate);
             const duration = end - start;
@@ -1136,7 +1054,6 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             
             document.getElementById('summaryTitle').textContent = titleFormatted;
             document.getElementById('summaryValue').textContent = currentTotal.toLocaleString();
-            document.getElementById('mergeCommitsValue').textContent = mergeTotal.toLocaleString();
             document.getElementById('churnRateValue').textContent = `${churnRate}%`;
             document.getElementById('activeDaysValue').textContent = activeDays;
             document.getElementById('avgPerDayValue').textContent = Number(avgPerDay).toLocaleString();
@@ -1157,102 +1074,43 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
         // ... (Charts 1-5 same as before) ...
         
         function updateWorkDurationChart(filteredData) {
-            // Logic: For each user AND day, find min(hour) and max(hour).
-            // Duration = max - min.
-            
-            const userDurations = {}; // { user: [duration1, duration2, ...] }
-            const dailyStats = {}; // { "date-user": { min: 24, max: 0 } }
-            
-            filteredData.forEach(d => {
-                const key = `${d.dateStr}-${d.author}`;
-                if (!dailyStats[key]) dailyStats[key] = { min: 24, max: 0, count: 0 };
-                
-                if (d.hour < dailyStats[key].min) dailyStats[key].min = d.hour;
-                if (d.hour > dailyStats[key].max) dailyStats[key].max = d.hour;
-                dailyStats[key].count++;
-            });
-            
-            Object.keys(dailyStats).forEach(key => {
-                const stat = dailyStats[key];
-                if (stat.count > 1) { // Need at least 2 commits to define a duration
-                    const user = key.split('-').slice(3).join('-'); // Hacky split? No, dateStr is YYYY-MM-DD (2 dashes)
-                    // Better: loop through dailyStats keys is risky if username has dashes.
-                    // Let's reconstruct.
-                }
-            });
-            
-            // Clean approach:
-            const userDailyMap = new Map();
-            filteredData.forEach(d => {
-                if (!userDailyMap.has(d.author)) userDailyMap.set(d.author, new Map());
-                const userDates = userDailyMap.get(d.author);
-                
-                if (!userDates.has(d.dateStr)) userDates.set(d.dateStr, { min: 24, max: 0, count: 0 });
-                const dayStat = userDates.get(d.dateStr);
-                
-                if (d.hour < dayStat.min) dayStat.min = d.hour;
-                if (d.hour > dayStat.max) dayStat.max = d.hour;
-                dayStat.count++;
-            });
-            
-            // Buckets: 0-1h, 1-4h, 4-8h, 8h+
             const labels = ['< 1h', '1-4h', '4-8h', '8h+'];
-            const datasets = [];
-            
-            allUsers.forEach(user => {
-                if (!userDailyMap.has(user)) return;
-                const stats = userDailyMap.get(user);
-                const bins = [0, 0, 0, 0];
-                
-                stats.forEach(dayStat => {
-                    if (dayStat.count < 2) return; // Single commit has 0 duration, usually not meaningful 'work session'
-                    const duration = dayStat.max - dayStat.min;
-                    
-                    if (duration < 1) bins[0]++;
-                    else if (duration < 4) bins[1]++;
-                    else if (duration < 8) bins[2]++;
-                    else bins[3]++;
-                });
-                
-                // Only add if there is data
-                if (bins.reduce((a,b)=>a+b,0) > 0) {
-                     datasets.push({
-                        label: user,
-                        data: bins,
-                        backgroundColor: stringToColor(user),
-                        stack: 'stack1'
-                    });
+            const userDatasets = {};
+
+            filteredData.forEach(d => {
+                if (d.hours && d.hours.length > 1) {
+                    if (!userDatasets[d.author]) userDatasets[d.author] = [0, 0, 0, 0];
+                    const duration = Math.max(...d.hours) - Math.min(...d.hours);
+                    if (duration < 1) userDatasets[d.author][0]++;
+                    else if (duration < 4) userDatasets[d.author][1]++;
+                    else if (duration < 8) userDatasets[d.author][2]++;
+                    else userDatasets[d.author][3]++;
                 }
             });
-            
-             if (durChart) durChart.destroy();
-             durChart = new Chart(durCtx, {
+
+            const datasets = Object.entries(userDatasets).map(([user, bins]) => ({
+                label: user,
+                data: bins,
+                backgroundColor: stringToColor(user),
+                stack: 'stack1'
+            }));
+
+            if (durChart) durChart.destroy();
+            durChart = new Chart(durCtx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+                data: { labels, datasets },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     scales: {
                         x: { stacked: true },
-                        y: { 
-                            stacked: true, 
-                            beginAtZero: true, 
-                            title: { display: true, text: t('label_days_count') } 
-                        }
+                        y: { stacked: true, beginAtZero: true, title: { display: true, text: t('label_days_count') } }
                     },
-                    plugins: {
-                        legend: { position: 'top', labels: { boxWidth: 12 } }
-                    }
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } }
                 }
             });
         }
 
         function updateTimelineChart(filteredData, metric, chartType, showTrend, startDate, endDate) {
-            // Aggregate by date and user
-            // We need to generate a dense list of dates between start and end
             const dateMap = new Map();
             let curr = new Date(startDate);
             const end = new Date(endDate);
@@ -1267,7 +1125,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             filteredData.forEach(d => {
                 if (!dateMap.has(d.dateStr)) return;
                 const daily = dateMap.get(d.dateStr);
-                daily[d.author] = (daily[d.author] || 0) + d[metric];
+                daily[d.author] = (daily[d.author] || 0) + (d[metric] || 0);
             });
 
             const datasets = allUsers.map(user => {
@@ -1303,23 +1161,16 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             }
 
             if (mainChart) mainChart.destroy();
-            
-            // Get proper Y-axis label based on metric
             const yLabel = t('metric_' + (metric === 'total_changes' ? 'total' : (metric === 'commit_count' ? 'commits' : metric)));
 
             mainChart = new Chart(ctx, {
                 type: chartType,
                 data: { labels: displayDates, datasets: datasets },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     scales: {
                         x: { stacked: chartType === 'bar' },
-                        y: { 
-                            stacked: chartType === 'bar', 
-                            beginAtZero: true,
-                            title: { display: true, text: yLabel }
-                        }
+                        y: { stacked: chartType === 'bar', beginAtZero: true, title: { display: true, text: yLabel } }
                     },
                     plugins: { tooltip: { mode: 'index', intersect: false } },
                     interaction: { mode: 'nearest', axis: 'x', intersect: false }
@@ -1330,7 +1181,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
         function updatePieChart(filteredData, metric) {
             const userTotals = {};
             filteredData.forEach(d => {
-                userTotals[d.author] = (userTotals[d.author] || 0) + d[metric];
+                userTotals[d.author] = (userTotals[d.author] || 0) + (d[metric] || 0);
             });
 
             const labels = Object.keys(userTotals);
@@ -1347,8 +1198,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'right' },
                         tooltip: {
@@ -1371,12 +1221,10 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             const dayTotals = new Array(7).fill(0);
 
             filteredData.forEach(d => {
-                dayTotals[d.dayOfWeek] += d[metric];
+                dayTotals[d.dayOfWeek] += (d[metric] || 0);
             });
 
             if (dowChart) dowChart.destroy();
-
-            // Get proper Y-axis label based on metric
             const yLabel = t('metric_' + (metric === 'total_changes' ? 'total' : (metric === 'commit_count' ? 'commits' : metric)));
 
             dowChart = new Chart(dowCtx, {
@@ -1392,180 +1240,159 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: { 
-                        y: { 
-                            beginAtZero: true,
-                            title: { display: true, text: yLabel }
-                        } 
-                    }
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: yLabel } } }
                 }
             });
         }
 
         function updateHeatmapChart(filteredData, metric) {
-            // Bubble chart: x=Hour, y=Day, r=Value
-            const buckets = {}; // key: "day-hour"
-            
+            const heatmapData = [];
+            const counts = {}; // "dow-hour" -> total metric
+
             filteredData.forEach(d => {
-                const key = `${d.dayOfWeek}-${d.hour}`;
-                buckets[key] = (buckets[key] || 0) + d[metric];
+                if (d.hours) {
+                    d.hours.forEach(h => {
+                        const key = `${d.dayOfWeek}-${h}`;
+                        counts[key] = (counts[key] || 0) + 1; // Heatmap usually shows commit frequency
+                    });
+                }
             });
 
-            const dataPoints = [];
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            
-            // Normalize radius
-            const maxVal = Math.max(...Object.values(buckets), 0);
-            
-            for (let day = 0; day < 7; day++) {
-                for (let hour = 0; hour < 24; hour++) {
-                    const val = buckets[`${day}-${hour}`] || 0;
-                    if (val > 0) {
-                        // Radius scaling: min 2, max 20
-                        const r = maxVal > 0 ? Math.sqrt(val / maxVal) * 15 + 2 : 0;
-                        dataPoints.push({ x: hour, y: day, r: r, v: val });
-                    }
+            for (let d = 0; d < 7; d++) {
+                for (let h = 0; h < 24; h++) {
+                    heatmapData.push({ x: h, y: d, v: counts[`${d}-${h}`] || 0 });
                 }
             }
 
             if (heatmapChart) heatmapChart.destroy();
             heatmapChart = new Chart(heatmapCtx, {
-                type: 'bubble',
+                type: 'matrix',
                 data: {
                     datasets: [{
-                        label: 'Activity',
-                        data: dataPoints,
-                        backgroundColor: 'rgba(231, 76, 60, 0.6)',
-                        borderColor: 'rgba(231, 76, 60, 1)'
+                        label: t('label_activity_heatmap'),
+                        data: heatmapData,
+                        backgroundColor(ctx) {
+                            const value = ctx.dataset.data[ctx.dataIndex].v;
+                            const alpha = Math.min(value / 10, 1);
+                            return `rgba(52, 152, 219, ${alpha})`;
+                        },
+                        width: ({ chart }) => (chart.chartArea.width / 24) - 1,
+                        height: ({ chart }) => (chart.chartArea.height / 7) - 1
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            min: -0.5, max: 23.5, 
-                            ticks: { stepSize: 1 }, 
-                            title: { display: true, text: 'Hour of Day' }
-                        },
-                        y: { 
-                            min: -0.5, max: 6.5, 
-                            ticks: { 
-                                callback: function(val) { return days[val]; },
-                                stepSize: 1
-                            },
-                            reverse: true
-                        }
-                    },
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(ctx) {
+                                label: ctx => {
                                     const d = ctx.raw;
-                                    return `${days[d.y]} ${d.x}:00 - ${d.v}`;
+                                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                    return `${days[d.y]} ${d.x}:00 - ${d.v} ${t('label_commits')}`;
                                 }
                             }
                         }
+                    },
+                    scales: {
+                        x: { type: 'linear', min: 0, max: 23, ticks: { stepSize: 1, callback: v => v + ':00' }, grid: { display: false } },
+                        y: { type: 'linear', min: 0, max: 6, ticks: { stepSize: 1, callback: v => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][v] }, grid: { display: false }, reverse: true }
                     }
                 }
             });
         }
 
         function updateSizeDistChart(filteredData) {
-            // Bins for commit size (total_changes): 0-10, 11-50, 51-100, 101-500, 500+
-            const bins = [0, 0, 0, 0, 0];
-            const labels = ['XS (0-10)', 'S (11-50)', 'M (51-100)', 'L (101-500)', 'XL (500+)'];
+            const bins = ['XS (<10)', 'S (10-50)', 'M (50-200)', 'L (200-500)', 'XL (500+)'];
+            const counts = [0, 0, 0, 0, 0];
 
             filteredData.forEach(d => {
-                const total = d.added + d.deleted; // Always use total changes for size
-                if (total <= 10) bins[0]++;
-                else if (total <= 50) bins[1]++;
-                else if (total <= 100) bins[2]++;
-                else if (total <= 500) bins[3]++;
-                else bins[4]++;
+                if (d.commit_sizes) {
+                    d.commit_sizes.forEach(s => {
+                        if (s < 10) counts[0]++;
+                        else if (s < 50) counts[1]++;
+                        else if (s < 200) counts[2]++;
+                        else if (s < 500) counts[3]++;
+                        else counts[4]++;
+                    });
+                }
             });
 
             if (sizeChart) sizeChart.destroy();
             sizeChart = new Chart(sizeCtx, {
                 type: 'bar',
                 data: {
-                    labels: labels.map(l => l.split(' ')[0]), // Just XS, S, M, L, XL for labels
+                    labels: bins,
                     datasets: [{
-                        label: t('label_commit_count'),
-                        data: bins,
-                        backgroundColor: [
-                            '#2ecc71', '#3498db', '#f1c40f', '#e67e22', '#e74c3c'
-                        ]
+                        label: t('label_commits'),
+                        data: counts,
+                        backgroundColor: '#f1c40f99',
+                        borderColor: '#f1c40f',
+                        borderWidth: 1
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { 
-                        y: { 
-                            beginAtZero: true,
-                            title: { display: true, text: t('label_commit_count') }
-                        } 
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(ctx) {
-                                    return `${labels[ctx.dataIndex]}: ${ctx.raw} ${t('label_commits')}`;
-                                }
-                            }
-                        }
-                    }
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: t('label_commits') } } }
                 }
             });
         }
 
-        function updateHotspotsChart(filteredData) {
-            const fileCounts = {};
-            
-            filteredData.forEach(d => {
-                d.files.forEach(fileIdx => {
-                    const path = filePaths[fileIdx];
-                    fileCounts[path] = (fileCounts[path] || 0) + 1;
-                });
-            });
-            
-            // Sort by count desc
-            const sortedFiles = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
-            const labels = sortedFiles.map(e => e[0]);
-            const values = sortedFiles.map(e => e[1]);
-            
+        function updateHotspotsChart(filteredData, startDate, endDate) {
             if (hotChart) hotChart.destroy();
+
+            const filteredAuthors = new Set(filteredData.map(d => d.author));
+            const fileCounts = {};
+            dashboardData.file_stats.forEach(fs => {
+                if (filteredAuthors.has(fs.author)) {
+                    const fName = filePaths[fs.file_idx] || `file_${fs.file_idx}`;
+                    fileCounts[fName] = (fileCounts[fName] || 0) + fs.count;
+                }
+            });
+
+            const topFiles = Object.entries(fileCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 15)
+                .reverse();
+
+            if (topFiles.length === 0) return;
+
+            const labels = topFiles.map(f => {
+                const name = f[0];
+                const parts = name.split('/');
+                return parts.length > 2 ? '.../' + parts.slice(-2).join('/') : name;
+            });
+
             hotChart = new Chart(hotCtx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: t('label_mod_count'),
-                        data: values,
-                        backgroundColor: 'rgba(155, 89, 182, 0.7)',
-                        borderColor: 'rgba(155, 89, 182, 1)',
+                        label: t('label_commits'),
+                        data: topFiles.map(f => f[1]),
+                        backgroundColor: '#e67e2299',
+                        borderColor: '#e67e22',
                         borderWidth: 1
                     }]
                 },
                 options: {
                     indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            beginAtZero: true,
-                            title: { display: true, text: t('label_mod_count') }
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (ctx) => topFiles[ctx[0].dataIndex][0],
+                                label: (ctx) => `${ctx.raw} ${t('label_commits')}`
+                            }
                         }
                     },
-                    plugins: {
-                         legend: { display: false }
+                    scales: {
+                        x: { beginAtZero: true, title: { display: true, text: t('label_commits') } },
+                        y: { ticks: { font: { size: 10 } } }
                     }
                 }
             });
@@ -1584,7 +1411,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                         activeDays: new Set()
                     };
                 }
-                userStats[user].commits++;
+                userStats[user].commits += d.commit_count;
                 userStats[user].added += d.added;
                 userStats[user].deleted += d.deleted;
                 userStats[user].activeDays.add(d.dateStr);
@@ -1593,7 +1420,6 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
 
-            // Sort by commits desc
             const sortedUsers = Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits);
 
             sortedUsers.forEach(([user, stats]) => {
