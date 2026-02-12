@@ -845,16 +845,52 @@ pub const HTML_TEMPLATE: &str = r#"
             const counts = {};
             filteredData.forEach(d => { if (d.hours) d.hours.forEach(h => { const key = `${d.dayOfWeek}-${h}`; counts[key] = (counts[key] || 0) + 1; }); });
             for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) heatmapData.push({ x: h, y: d, v: counts[`${d}-${h}`] || 0 });
+            
             if (heatmapChart) heatmapChart.destroy();
             heatmapChart = new Chart(heatmapCtx, {
                 type: 'matrix',
-                data: { datasets: [{
-                    data: heatmapData,
-                    backgroundColor: ctx => `rgba(52, 152, 219, ${Math.min(ctx.dataset.data[ctx.dataIndex].v / 10, 1)})`,
-                    width: ({ chart }) => chart.chartArea ? (chart.chartArea.width / 24) - 1 : 0,
-                    height: ({ chart }) => chart.chartArea ? (chart.chartArea.height / 7) - 1 : 0
-                }]},
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear', min: 0, max: 23 }, y: { type: 'linear', min: 0, max: 6, reverse: true } } }
+                data: {
+                    datasets: [{
+                        label: 'Commit Frequency',
+                        data: heatmapData,
+                        backgroundColor: ctx => `rgba(52, 152, 219, ${Math.min(ctx.dataset.data[ctx.dataIndex].v / 10, 1)})`,
+                        width: ({ chart }) => chart.chartArea ? (chart.chartArea.width / 24) - 1 : 0,
+                        height: ({ chart }) => chart.chartArea ? (chart.chartArea.height / 7) - 1 : 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const d = ctx.raw;
+                                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                    return `${days[d.y]} ${d.x}:00 - ${d.v} ${t('label_commits')}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear', min: 0, max: 23,
+                            ticks: { stepSize: 1, callback: v => v + ':00' },
+                            grid: { display: false },
+                            title: { display: true, text: 'Hour of Day' }
+                        },
+                        y: {
+                            type: 'linear', min: 0, max: 6,
+                            ticks: {
+                                stepSize: 1,
+                                callback: v => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][v]
+                            },
+                            grid: { display: false },
+                            reverse: true
+                        }
+                    }
+                }
             });
         }
 
