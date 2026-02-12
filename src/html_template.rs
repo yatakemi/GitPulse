@@ -1075,6 +1075,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             
             const totalChanges = currentData.reduce((acc, d) => acc + d.total_changes, 0);
             const totalChurn = currentData.reduce((acc, d) => acc + d.churn, 0);
+            const totalMerges = currentData.reduce((acc, d) => acc + d.merges, 0);
             const churnRate = totalChanges > 0 ? ((totalChurn / totalChanges) * 100).toFixed(1) : 0;
 
             const start = new Date(startDate);
@@ -1094,6 +1095,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             
             document.getElementById('summaryTitle').textContent = titleFormatted;
             document.getElementById('summaryValue').textContent = currentTotal.toLocaleString();
+            document.getElementById('mergeCommitsValue').textContent = totalMerges.toLocaleString();
             document.getElementById('churnRateValue').textContent = `${churnRate}%`;
             document.getElementById('activeDaysValue').textContent = activeDays;
             document.getElementById('avgPerDayValue').textContent = Number(avgPerDay).toLocaleString();

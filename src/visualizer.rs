@@ -150,6 +150,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
             added: 0,
             deleted: 0,
             commits: 0,
+            merges: 0,
             churn: 0,
             hours: Vec::new(),
             commit_sizes: Vec::new(),
@@ -157,6 +158,9 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         stat.added += commit.added;
         stat.deleted += commit.deleted;
         stat.commits += 1;
+        if commit.is_merge {
+            stat.merges += 1;
+        }
         stat.churn += churn;
         stat.hours.push(hour);
         stat.commit_sizes.push(total);

@@ -30,6 +30,7 @@ pub struct DailyStat {
     pub deleted: usize,
     pub commits: usize,
     pub churn: usize,
+    pub merges: usize,
     pub hours: Vec<u32>,
     pub commit_sizes: Vec<usize>, // total_changes of each commit
 }
