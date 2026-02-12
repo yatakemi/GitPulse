@@ -74,6 +74,44 @@ pub const HTML_TEMPLATE: &str = r#"
         .insight-desc { font-size: 13px; color: #555; line-height: 1.5; }
         .insight-value { font-weight: 700; color: #2c3e50; }
         
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .user-table th, .user-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .user-table th {
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        .user-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        .user-table .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .user-table .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.added { background: #ecfaf2; color: #27ae60; }
+        .badge.deleted { background: #fdf2f2; color: #e74c3c; }
+        
     </style>
 </head>
 <body>
@@ -231,6 +269,27 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 <canvas id="ctxSwitchChart"></canvas>
             </div>
         </div>
+
+        <!-- User List Section -->
+        <div class="card" style="max-width: none; margin-bottom: 30px;">
+            <h2 data-i18n="title_user_list" style="font-size: 18px; color: #2c3e50; margin-bottom: 15px; text-align: left;">User Activity Details</h2>
+            <div style="overflow-x: auto;">
+                <table class="user-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th data-i18n="header_author">Author</th>
+                            <th data-i18n="header_commits">Commits</th>
+                            <th data-i18n="header_added">Added</th>
+                            <th data-i18n="header_deleted">Deleted</th>
+                            <th data-i18n="header_active_days">Active Days</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -314,7 +373,13 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 insight_ctxswitch_title: "Frequent Context Switching",
                 insight_ctxswitch_desc: "Average {value} directories touched per day. Frequent switching between areas reduces deep work and focus.",
                 insight_longlived_title: "Long-lived Branches",
-                insight_longlived_desc: "{value} branch(es) lived longer than 7 days. Long-lived branches increase merge complexity and risk."
+                insight_longlived_desc: "{value} branch(es) lived longer than 7 days. Long-lived branches increase merge complexity and risk.",
+                title_user_list: "User Activity Details",
+                header_author: "Author",
+                header_commits: "Commits",
+                header_added: "Added",
+                header_deleted: "Deleted",
+                header_active_days: "Active Days"
             },
             ja: {
                 title: "Git生産性レポート",
@@ -395,7 +460,13 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 insight_ctxswitch_title: "🔀 頻繁なコンテキストスイッチ",
                 insight_ctxswitch_desc: "1日平均{value}ディレクトリを跨いで作業しています。頻繁な切り替えは集中力と深い作業を妨げます。",
                 insight_longlived_title: "🔄 長命ブランチ",
-                insight_longlived_desc: "{value}個のブランチが7日以上存続しています。長命ブランチはマージの複雑さとリスクを増大させます。"
+                insight_longlived_desc: "{value}個のブランチが7日以上存続しています。長命ブランチはマージの複雑さとリスクを増大させます。",
+                title_user_list: "ユーザー別アクティビティ詳細",
+                header_author: "作成者",
+                header_commits: "コミット数",
+                header_added: "追加行",
+                header_deleted: "削除行",
+                header_active_days: "稼働日数"
             }
         };
 
@@ -500,7 +571,6 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
         }
 
         function updateDashboard() {
-            // ... (existing calls) ...
             const metric = document.getElementById('metricSelect').value;
             const chartType = document.getElementById('chartTypeSelect').value;
             const startDate = document.getElementById('startDate').value;
@@ -522,6 +592,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             updateLeadTimeChart(filteredData);
             updateContextSwitchChart(filteredData);
             generateInsights(filteredData, startDate, endDate);
+            updateUserList(filteredData);
         }
 
         // ... (existing updateSummary, updateTimelineChart, etc.) ...
@@ -1500,6 +1571,49 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             });
         }
         
+        function updateUserList(filteredData) {
+            const userStats = {};
+            
+            filteredData.forEach(d => {
+                const user = d.author;
+                if (!userStats[user]) {
+                    userStats[user] = {
+                        commits: 0,
+                        added: 0,
+                        deleted: 0,
+                        activeDays: new Set()
+                    };
+                }
+                userStats[user].commits++;
+                userStats[user].added += d.added;
+                userStats[user].deleted += d.deleted;
+                userStats[user].activeDays.add(d.dateStr);
+            });
+
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            // Sort by commits desc
+            const sortedUsers = Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits);
+
+            sortedUsers.forEach(([user, stats]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar" style="background-color: ${stringToColor(user)}"></div>
+                            <strong>${user}</strong>
+                        </div>
+                    </td>
+                    <td>${stats.commits.toLocaleString()}</td>
+                    <td><span class="badge added">+${stats.added.toLocaleString()}</span></td>
+                    <td><span class="badge deleted">-${stats.deleted.toLocaleString()}</span></td>
+                    <td>${stats.activeDays.size}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         // Initial render
         updateDashboard();
     </script>
