@@ -7,13 +7,25 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool, include_github: bool) -> Result<()> {
+pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool, include_github: bool, no_cache: bool) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
     let mut github_prs = Vec::new();
     if include_github {
         let client = crate::github::GitHubClient::new(repo_path)?;
-        github_prs = client.fetch_reviews()?;
+        
+        let mut loaded = false;
+        if !no_cache {
+            if let Some(cached_prs) = client.load_cache() {
+                github_prs = cached_prs;
+                loaded = true;
+            }
+        }
+        
+        if !loaded {
+            github_prs = client.fetch_reviews()?;
+            client.save_cache(&github_prs)?;
+        }
     }
 
     // First pass: Count total commits for progress bar

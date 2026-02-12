@@ -22,13 +22,54 @@ pub struct GitHubPR {
 pub struct GitHubClient {
     token: String,
     repo: String, // "owner/repo"
+    agent: ureq::Agent,
 }
 
 impl GitHubClient {
     pub fn new(repo_path: &std::path::Path) -> Result<Self> {
         let token = Self::get_token()?;
         let repo = Self::get_repo_name(repo_path)?;
-        Ok(Self { token, repo })
+        
+        // Setup proxy from environment
+        let mut agent_builder = ureq::AgentBuilder::new();
+        if let Ok(proxy_url) = std::env::var("HTTPS_PROXY").or_else(|_| std::env::var("https_proxy")) {
+            agent_builder = agent_builder.proxy(ureq::Proxy::new(proxy_url)?);
+        } else if let Ok(proxy_url) = std::env::var("HTTP_PROXY").or_else(|_| std::env::var("http_proxy")) {
+            agent_builder = agent_builder.proxy(ureq::Proxy::new(proxy_url)?);
+        }
+        
+        Ok(Self { 
+            token, 
+            repo,
+            agent: agent_builder.build(),
+        })
+    }
+
+    pub fn get_cache_path(&self) -> std::path::PathBuf {
+        let mut path = std::env::temp_dir();
+        let safe_repo = self.repo.replace('/', "_");
+        path.push(format!("gitpulse_cache_{}.json", safe_repo));
+        path
+    }
+
+    pub fn load_cache(&self) -> Option<Vec<GitHubPR>> {
+        let path = self.get_cache_path();
+        if path.exists() {
+            if let Ok(file) = std::fs::File::open(path) {
+                if let Ok(prs) = serde_json::from_reader(file) {
+                    println!("📦 Using cached GitHub data...");
+                    return Some(prs);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn save_cache(&self, prs: &[GitHubPR]) -> Result<()> {
+        let path = self.get_cache_path();
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer(file, prs)?;
+        Ok(())
     }
 
     fn get_token() -> Result<String> {
@@ -112,7 +153,7 @@ impl GitHubClient {
         let owner = parts[0];
         let name = parts[1];
 
-        let response: serde_json::Value = ureq::post("https://api.github.com/graphql")
+        let response: serde_json::Value = self.agent.post("https://api.github.com/graphql")
             .set("Authorization", &format!("Bearer {}", self.token))
             .set("User-Agent", "GitPulse")
             .send_json(serde_json::json!({

@@ -35,6 +35,10 @@ enum Commands {
         /// Include GitHub review activity analysis
         #[arg(short, long, default_value_t = false)]
         github: bool,
+
+        /// Skip GitHub data cache and force a fresh fetch
+        #[arg(long, default_value_t = false)]
+        no_cache: bool,
     },
     /// Visualize stats from JSON to CSV or HTML
     Visualize {
@@ -56,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Collect { repo, out, merges_only, github } => {
+        Commands::Collect { repo, out, merges_only, github, no_cache } => {
             let config_path = std::path::Path::new("gitpulse.toml");
             let config = if config_path.exists() {
                 config::Config::load(config_path)
@@ -64,7 +68,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 config::Config::default()
             };
-            collector::collect_stats(repo, out, &config, *merges_only, *github)?;
+            collector::collect_stats(repo, out, &config, *merges_only, *github, *no_cache)?;
         }
         Commands::Visualize { data, out, format } => {
             visualizer::visualize_stats(data, out, format)?;

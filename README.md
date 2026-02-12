@@ -113,7 +113,8 @@ exclude = [
 Exclusion supports:
 - **Exact match**: `pnpm-lock.yaml`
 - **Directory prefix**: `node_modules/` (excludes everything inside)
-- **Wildcards**: Basic support for `*` at the beginning or end (e.g., `*.lock`, `vendor/*`).
+- **Suffix wildcard**: `*.lock` (excludes files ending with .lock)
+- **Prefix wildcard**: `vendor/*` (excludes paths starting with vendor/)
 
 ## Advanced Analysis (v0.6+)
 
