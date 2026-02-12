@@ -1166,10 +1166,14 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     maintainAspectRatio: false,
                     scales: {
                         x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Days Count' } }
+                        y: { 
+                            stacked: true, 
+                            beginAtZero: true, 
+                            title: { display: true, text: t('label_days_count') } 
+                        }
                     },
-                     plugins: {
-                        title: { display: true, text: 'Distribution of Daily Work Hours (First to Last Commit)' }
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12 } }
                     }
                 }
             });
@@ -1228,6 +1232,10 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             }
 
             if (mainChart) mainChart.destroy();
+            
+            // Get proper Y-axis label based on metric
+            const yLabel = t('metric_' + (metric === 'total_changes' ? 'total' : (metric === 'commit_count' ? 'commits' : metric)));
+
             mainChart = new Chart(ctx, {
                 type: chartType,
                 data: { labels: displayDates, datasets: datasets },
@@ -1236,7 +1244,11 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     maintainAspectRatio: false,
                     scales: {
                         x: { stacked: chartType === 'bar' },
-                        y: { stacked: chartType === 'bar', beginAtZero: true }
+                        y: { 
+                            stacked: chartType === 'bar', 
+                            beginAtZero: true,
+                            title: { display: true, text: yLabel }
+                        }
                     },
                     plugins: { tooltip: { mode: 'index', intersect: false } },
                     interaction: { mode: 'nearest', axis: 'x', intersect: false }
@@ -1292,12 +1304,16 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             });
 
             if (dowChart) dowChart.destroy();
+
+            // Get proper Y-axis label based on metric
+            const yLabel = t('metric_' + (metric === 'total_changes' ? 'total' : (metric === 'commit_count' ? 'commits' : metric)));
+
             dowChart = new Chart(dowCtx, {
                 type: 'bar',
                 data: {
                     labels: days,
                     datasets: [{
-                        label: 'Activity by Day',
+                        label: t('label_activity'),
                         data: dayTotals,
                         backgroundColor: 'rgba(52, 152, 219, 0.7)',
                         borderColor: 'rgba(52, 152, 219, 1)',
@@ -1307,7 +1323,15 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: yLabel }
+                        } 
+                    }
                 }
             });
         }
@@ -1399,9 +1423,9 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             sizeChart = new Chart(sizeCtx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: labels.map(l => l.split(' ')[0]), // Just XS, S, M, L, XL for labels
                     datasets: [{
-                        label: 'Commit Count',
+                        label: t('label_commit_count'),
                         data: bins,
                         backgroundColor: [
                             '#2ecc71', '#3498db', '#f1c40f', '#e67e22', '#e74c3c'
@@ -1411,10 +1435,21 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: t('label_commit_count') }
+                        } 
+                    },
                     plugins: {
                         legend: { display: false },
-                        title: { display: true, text: 'Commit Size (Lines Changed)' }
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return `${labels[ctx.dataIndex]}: ${ctx.raw} ${t('label_commits')}`;
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -1441,7 +1476,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Modification Count',
+                        label: t('label_mod_count'),
                         data: values,
                         backgroundColor: 'rgba(155, 89, 182, 0.7)',
                         borderColor: 'rgba(155, 89, 182, 1)',
@@ -1453,7 +1488,10 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { beginAtZero: true }
+                        x: { 
+                            beginAtZero: true,
+                            title: { display: true, text: t('label_mod_count') }
+                        }
                     },
                     plugins: {
                          legend: { display: false }
