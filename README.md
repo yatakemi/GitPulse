@@ -49,6 +49,9 @@ gitpulse collect --out stats.json
 
 # Analyze a specific repository
 gitpulse collect --repo /path/to/repo --out stats.json
+
+# Analyze only merge commits
+gitpulse collect --merges-only --out merge_stats.json
 ```
 
 ### 2. Visualize Data
@@ -130,6 +133,30 @@ The dashboard includes tooltips (info icons) for each chart, explaining what to 
 GitPulse adopts a "Collector-Visualizer" pattern:
 1.  **Collector**: Scans `git` history using `libgit2` and dumps raw commit stats to a JSON file.
 2.  **Visualizer**: Reads the JSON, applies user unification rules, aggregates data, and renders it to the desired format (HTML/CSV).
+
+## Development & Verification
+
+To ensure the quality of changes, you can use the following methods for verification:
+
+### 1. Automated Verification
+Run the verification script to build the project and perform an end-to-end check using a minimal test repository.
+```bash
+./verify.sh
+```
+
+### 2. Comprehensive Data Test
+Generate a sample repository with 30 days of activity and multiple users to verify advanced features like forecasting and filtering.
+```bash
+python3 generate_sample_repo.py
+./target/release/gitpulse collect --repo sample_repo --out sample_stats.json
+./target/release/gitpulse visualize --data sample_stats.json --out sample_report.html --format html
+```
+
+### 3. Unit Tests
+Run standard Rust unit tests.
+```bash
+cargo test
+```
 
 ## License
 

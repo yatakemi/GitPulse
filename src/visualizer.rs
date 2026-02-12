@@ -123,24 +123,31 @@ fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()
 
 fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::DashboardData {
     use std::collections::{HashMap, HashSet};
-    use crate::model::{DailyStat, FileStat, MergeEvent};
+    use crate::model::{DailyStat, FileStat, MergeEvent, WeeklyStat};
 
     let mut daily_map: HashMap<(String, String), DailyStat> = HashMap::new();
     let mut file_map: HashMap<(usize, String), usize> = HashMap::new();
     let mut merge_events = Vec::new();
     let mut daily_dirs: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut weekly_map: HashMap<String, WeeklyStat> = HashMap::new();
 
     // Grouping commits for merge time calculation
     let mut non_merge_commits = data.commits.clone();
     non_merge_commits.retain(|c| !c.is_merge);
     non_merge_commits.sort_by(|a, b| a.date.cmp(&b.date));
-
+    
     for commit in &data.commits {
         let date_str = commit.date.date_naive().format("%Y-%m-%d").to_string();
         let hour = commit.date.hour();
         let total = commit.added + commit.deleted;
         let churn = (commit.added + commit.deleted) as i64 - (commit.added as i64 - commit.deleted as i64).abs();
         let churn = churn as usize;
+
+        // Monday-based week start
+        use chrono::Datelike;
+        let weekday = commit.date.weekday().num_days_from_monday();
+        let week_start = commit.date.date_naive() - chrono::Duration::days(weekday as i64);
+        let week_start_str = week_start.format("%Y-%m-%d").to_string();
 
         // Daily stats
         let key = (date_str.clone(), commit.author.clone());
@@ -164,6 +171,19 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         stat.churn += churn;
         stat.hours.push(hour);
         stat.commit_sizes.push(total);
+
+        // Weekly stats (global)
+        let w_stat = weekly_map.entry(week_start_str.clone()).or_insert(WeeklyStat {
+            week_start: week_start_str,
+            added: 0,
+            deleted: 0,
+            commits: 0,
+            churn: 0,
+        });
+        w_stat.added += commit.added;
+        w_stat.deleted += commit.deleted;
+        w_stat.commits += 1;
+        w_stat.churn += churn;
 
         // File stats and directory tracking
         let day_dir_set = daily_dirs.entry(date_str.clone()).or_insert(HashSet::new());
@@ -211,11 +231,53 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         .map(|(date, dirs)| crate::model::DirCount { date, count: dirs.len() })
         .collect();
 
+    let mut weekly_stats: Vec<WeeklyStat> = weekly_map.into_values().collect();
+    weekly_stats.sort_by(|a, b| a.week_start.cmp(&b.week_start));
+
+    // Simple Forecasting Logic
+    let forecast = if weekly_stats.len() >= 2 {
+        let last_4_weeks: Vec<&WeeklyStat> = weekly_stats.iter().rev().take(4).collect();
+        let current_velocity = last_4_weeks.iter().map(|w| w.commits as f64).sum::<f64>() / last_4_weeks.len() as f64;
+        
+        // Trend: compare last 2 weeks vs previous 2 weeks
+        let v_recent = if last_4_weeks.len() >= 2 {
+            (last_4_weeks[0].commits + last_4_weeks[1].commits) as f64 / 2.0
+        } else {
+            last_4_weeks[0].commits as f64
+        };
+        let v_prev = if last_4_weeks.len() >= 4 {
+            (last_4_weeks[2].commits + last_4_weeks[3].commits) as f64 / 2.0
+        } else if last_4_weeks.len() >= 3 {
+            last_4_weeks[2].commits as f64
+        } else {
+            v_recent // no trend if data is too small
+        };
+        
+        let velocity_trend = if v_prev > 0.0 {
+            ((v_recent - v_prev) / v_prev) * 100.0
+        } else {
+            0.0
+        };
+
+        let projected_60_days = (current_velocity * (60.0 / 7.0)) as usize;
+
+        Some(crate::model::ForecastData {
+            current_velocity,
+            velocity_trend,
+            projected_60_days,
+            est_completion_date: None, // Will calculate in JS with dynamic target
+        })
+    } else {
+        None
+    };
+
     crate::model::DashboardData {
         daily_stats: daily_map.into_values().collect(),
         file_stats: file_map.into_iter().map(|((f, a), c)| FileStat { file_idx: f, author: a, count: c }).collect(),
         merge_events,
         daily_dir_counts,
+        weekly_stats,
+        forecast,
         file_paths: data.file_paths.clone(),
     }
 }

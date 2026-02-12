@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config) -> Result<()> {
+pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
     // First pass: Count total commits for progress bar
@@ -15,7 +15,22 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
     let mut revwalk = repo.revwalk()?;
     revwalk.set_sorting(Sort::TIME)?;
     revwalk.push_head()?;
-    let total_commits = revwalk.count() as u64;
+    
+    let total_commits = if merges_only {
+        let mut count = 0;
+        for oid_result in revwalk {
+            if let Ok(oid) = oid_result {
+                if let Ok(commit) = repo.find_commit(oid) {
+                    if commit.parent_count() > 1 {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        count
+    } else {
+        revwalk.count() as u64
+    };
 
     // Second pass: Process commits
     let mut revwalk = repo.revwalk()?;
@@ -33,12 +48,17 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
     let mut file_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for oid_result in revwalk {
-        pb.inc(1);
         let oid = oid_result?;
         let commit = repo.find_commit(oid)?;
 
         // Check if it's a merge commit
         let is_merge = commit.parent_count() > 1;
+
+        if merges_only && !is_merge {
+            continue;
+        }
+
+        pb.inc(1);
 
         let author = commit.author();
         let author_name = author.name().unwrap_or("Unknown").to_string();

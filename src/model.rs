@@ -13,6 +13,8 @@ pub struct DashboardData {
     pub file_stats: Vec<FileStat>,
     pub merge_events: Vec<MergeEvent>,
     pub daily_dir_counts: Vec<DirCount>,
+    pub weekly_stats: Vec<WeeklyStat>,
+    pub forecast: Option<ForecastData>,
     pub file_paths: Vec<String>,
 }
 
@@ -33,6 +35,23 @@ pub struct DailyStat {
     pub merges: usize,
     pub hours: Vec<u32>,
     pub commit_sizes: Vec<usize>, // total_changes of each commit
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WeeklyStat {
+    pub week_start: String, // YYYY-MM-DD (Monday)
+    pub added: usize,
+    pub deleted: usize,
+    pub commits: usize,
+    pub churn: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ForecastData {
+    pub current_velocity: f64, // avg commits per week (last 4 weeks)
+    pub velocity_trend: f64,   // percentage change
+    pub projected_60_days: usize,
+    pub est_completion_date: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

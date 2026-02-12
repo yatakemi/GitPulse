@@ -26,6 +26,10 @@ enum Commands {
         /// Output JSON path
         #[arg(short, long, default_value = "git_stats.json")]
         out: PathBuf,
+
+        /// Analyze only merge commits
+        #[arg(short, long, default_value_t = false)]
+        merges_only: bool,
     },
     /// Visualize stats from JSON to CSV or HTML
     Visualize {
@@ -47,7 +51,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Collect { repo, out } => {
+        Commands::Collect { repo, out, merges_only } => {
             let config_path = std::path::Path::new("gitpulse.toml");
             let config = if config_path.exists() {
                 config::Config::load(config_path)
@@ -55,7 +59,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 config::Config::default()
             };
-            collector::collect_stats(repo, out, &config)?;
+            collector::collect_stats(repo, out, &config, *merges_only)?;
         }
         Commands::Visualize { data, out, format } => {
             visualizer::visualize_stats(data, out, format)?;

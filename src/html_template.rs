@@ -141,6 +141,29 @@ pub const HTML_TEMPLATE: &str = r#"
         .user-checkbox-item:hover { background: #f1f8ff; }
         .user-checkbox-item input { margin: 0; cursor: pointer; }
         .user-checkbox-item .color-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* Forecast Styles */
+        .forecast-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px; margin-bottom: 25px;
+        }
+        .forecast-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px; border-radius: 12px; border-left: 4px solid #3498db;
+        }
+        .forecast-value { font-size: 24px; font-weight: bold; color: #2c3e50; margin: 10px 0; }
+        .forecast-label { font-size: 14px; color: #7f8c8d; }
+        .forecast-trend { font-size: 14px; font-weight: bold; }
+        .forecast-trend.up { color: #27ae60; }
+        .forecast-trend.down { color: #e74c3c; }
+        
+        .goal-setter {
+            background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee;
+            margin-top: 10px; display: flex; align-items: center; gap: 10px;
+        }
+        .goal-setter input {
+            padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; width: 80px;
+        }
         
     </style>
 </head>
@@ -224,6 +247,34 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
             <div class="user-checkbox-grid" id="userCheckboxes">
                 <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Predictive Analysis Section -->
+        <div class="card" style="max-width: none; margin-bottom: 25px;">
+            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 20px;">🔮 <span data-i18n="title_predictive_analysis">Predictive Analysis</span></h2>
+            <div class="forecast-grid">
+                <div class="forecast-card">
+                    <div class="forecast-label" data-i18n="label_current_velocity">Current Velocity</div>
+                    <div class="forecast-value" id="currentVelocityValue">-</div>
+                    <div class="forecast-trend" id="velocityTrendValue">-</div>
+                </div>
+                <div class="forecast-card">
+                    <div class="forecast-label" data-i18n="label_projected_throughput">Projected 60-Day Throughput</div>
+                    <div class="forecast-value" id="projectedThroughputValue">-</div>
+                </div>
+                <div class="forecast-card">
+                    <div class="forecast-label" data-i18n="label_est_completion">Estimated Completion Date</div>
+                    <div class="forecast-value" id="estCompletionValue">-</div>
+                    <div class="goal-setter">
+                        <span data-i18n="label_target_goal">Target Goal</span>
+                        <input type="number" id="targetGoalInput" value="1000" onchange="updatePredictiveDashboard()">
+                    </div>
+                </div>
+            </div>
+            <div class="chart-box full-width" style="box-shadow: none; padding: 0;">
+                <div class="chart-title" data-i18n="forecast_chart_title">Velocity Forecasting</div>
+                <canvas id="forecastChart" style="height: 300px;"></canvas>
             </div>
         </div>
 
@@ -349,8 +400,15 @@ pub const HTML_TEMPLATE: &str = r#"
                 header_top_dirs: "Top Dirs",
                 header_avg_lead_time: "Avg Lead Time",
                 btn_select_all: "Select All",
-                btn_select_none: "Select None",
-                title_user_selection: "Filter by Users"
+                title_user_selection: "Filter by Users",
+                title_predictive_analysis: "Predictive Analysis (BETA)",
+                label_current_velocity: "Current Velocity",
+                label_projected_throughput: "Projected 60-Day Throughput",
+                label_target_goal: "Target Goal (Commits)",
+                label_est_completion: "Estimated Completion Date",
+                forecast_chart_title: "Velocity Forecasting",
+                insight_predicted_goal_title: "Target Forecast",
+                insight_predicted_goal_desc: "At current velocity, you will reach your goal of {target} commits by {date}."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -437,8 +495,15 @@ pub const HTML_TEMPLATE: &str = r#"
                 header_top_dirs: "得意ディレクトリ",
                 header_avg_lead_time: "平均リードタイム",
                 btn_select_all: "すべて選択",
-                btn_select_none: "選択解除",
-                title_user_selection: "ユーザー別フィルター"
+                title_user_selection: "ユーザー別フィルター",
+                title_predictive_analysis: "予測分析（ベータ版）",
+                label_current_velocity: "現在のベロシティ",
+                label_projected_throughput: "今後60日間の予測作業量",
+                label_target_goal: "目標コミット数",
+                label_est_completion: "予測完了日",
+                forecast_chart_title: "ベロシティ予測",
+                insight_predicted_goal_title: "🎯 目標予測",
+                insight_predicted_goal_desc: "現在のベロシティを維持した場合、目標の{target}コミットには{date}に到達する見込みです。"
             }
         };
 
@@ -501,9 +566,9 @@ pub const HTML_TEMPLATE: &str = r#"
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
-        const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
+        const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, ctxChart;
+        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, ctxChart, forecastChart;
 
         // ... (existing helper vars and functions) ...
         const allUsers = [...new Set(data.map(d => d.author))];
@@ -648,6 +713,7 @@ pub const HTML_TEMPLATE: &str = r#"
             updateContextSwitchChart(filteredData, startDate, endDate);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
+            updatePredictiveDashboard(filteredData);
         }
 
         // ... (existing updateSummary, updateTimelineChart, etc.) ...
@@ -1462,6 +1528,139 @@ pub const HTML_TEMPLATE: &str = r#"
             });
         }
         
+        function getWeeklyStats(filteredData) {
+            const weeklyMap = {};
+            filteredData.forEach(d => {
+                const date = new Date(d.dateStr);
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday
+                const monday = new Date(date.setDate(diff));
+                const weekStart = monday.toISOString().split('T')[0];
+                
+                if (!weeklyMap[weekStart]) {
+                    weeklyMap[weekStart] = { week_start: weekStart, commits: 0, added: 0, deleted: 0 };
+                }
+                weeklyMap[weekStart].commits += d.commit_count;
+                weeklyMap[weekStart].added += d.added;
+                weeklyMap[weekStart].deleted += d.deleted;
+            });
+            return Object.values(weeklyMap).sort((a, b) => a.week_start.localeCompare(b.week_start));
+        }
+
+        function updatePredictiveDashboard(filteredData) {
+            const weeklyStats = getWeeklyStats(filteredData);
+            if (weeklyStats.length < 2) {
+                // Not enough data for prediction
+                document.getElementById('currentVelocityValue').textContent = '-';
+                document.getElementById('velocityTrendValue').textContent = '-';
+                document.getElementById('projectedThroughputValue').textContent = '-';
+                document.getElementById('estCompletionValue').textContent = '-';
+                if (forecastChart) forecastChart.destroy();
+                return;
+            }
+
+            const last4Weeks = weeklyStats.slice(-4).reverse();
+            const currentVelocity = last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length;
+            
+            // Trend
+            const recentAvg = (last4Weeks[0].commits + (last4Weeks[1] ? last4Weeks[1].commits : last4Weeks[0].commits)) / 2;
+            const prevAvg = last4Weeks.length >= 4 
+                ? (last4Weeks[2].commits + last4Weeks[3].commits) / 2
+                : (last4Weeks[2] ? last4Weeks[2].commits : recentAvg);
+            
+            const trend = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg) * 100 : 0;
+            const trendEl = document.getElementById('velocityTrendValue');
+            trendEl.textContent = `${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend).toFixed(1)}%`;
+            trendEl.className = `forecast-trend ${trend >= 0 ? 'up' : 'down'}`;
+
+            document.getElementById('currentVelocityValue').textContent = `${currentVelocity.toFixed(1)} ${t('header_commits')}/week`;
+            
+            const projected60 = Math.round(currentVelocity * (60/7));
+            document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('header_commits')}`;
+
+            // Goal Estimation
+            const targetGoal = parseInt(document.getElementById('targetGoalInput').value) || 1000;
+            const currentTotalCommits = filteredData.reduce((acc, d) => acc + d.commit_count, 0);
+            const remaining = targetGoal - currentTotalCommits;
+            
+            if (remaining > 0 && currentVelocity > 0) {
+                const weeksToGoal = remaining / currentVelocity;
+                const estDate = new Date();
+                estDate.setDate(estDate.getDate() + (weeksToGoal * 7));
+                document.getElementById('estCompletionValue').textContent = estDate.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                
+                // Add predictive insight
+                const insightsContainer = document.getElementById('insightsGrid');
+                const card = document.createElement('div');
+                card.className = 'insight-card positive';
+                card.innerHTML = `
+                    <div class="insight-icon">🎯</div>
+                    <div class="insight-body">
+                        <div class="insight-title">${t('insight_predicted_goal_title')}</div>
+                        <div class="insight-desc">${t('insight_predicted_goal_desc').replace('{target}', targetGoal).replace('{date}', estDate.toLocaleDateString())}</div>
+                    </div>
+                `;
+                insightsContainer.prepend(card);
+            } else {
+                document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Goal Reached!' : '-';
+            }
+
+            updateForecastChart(weeklyStats, currentVelocity);
+        }
+
+        function updateForecastChart(weeklyStats, currentVelocity) {
+            if (forecastChart) forecastChart.destroy();
+
+            const labels = weeklyStats.map(w => w.week_start);
+            const dataPoint = weeklyStats.map(w => w.commits);
+            
+            // Projections (next 4 weeks)
+            const projectionLabels = [];
+            const projectionData = new Array(labels.length - 1).fill(null);
+            projectionData.push(dataPoint[dataPoint.length - 1]); // connector
+
+            const lastDate = new Date(labels[labels.length - 1]);
+            for (let i = 1; i <= 4; i++) {
+                const nextDate = new Date(lastDate);
+                nextDate.setDate(lastDate.getDate() + (i * 7));
+                const nextDateStr = nextDate.toISOString().split('T')[0];
+                labels.push(nextDateStr);
+                projectionData.push(currentVelocity);
+            }
+
+            forecastChart = new Chart(forecastCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: t('forecast_chart_title') + ' (History)',
+                            data: dataPoint,
+                            borderColor: '#3498db',
+                            backgroundColor: '#3498db22',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: t('forecast_chart_title') + ' (Projected)',
+                            data: projectionData,
+                            borderColor: '#3498db',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: t('header_commits') } }
+                    }
+                }
+            });
+        }
+
         function updateUserList(filteredData) {
             const userStats = {};
             
