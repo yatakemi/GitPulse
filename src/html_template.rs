@@ -1318,8 +1318,8 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
                             const alpha = Math.min(value / 10, 1);
                             return `rgba(52, 152, 219, ${alpha})`;
                         },
-                        width: ({ chart }) => (chart.chartArea.width / 24) - 1,
-                        height: ({ chart }) => (chart.chartArea.height / 7) - 1
+                        width: ({ chart }) => chart.chartArea ? (chart.chartArea.width / 24) - 1 : 0,
+                        height: ({ chart }) => chart.chartArea ? (chart.chartArea.height / 7) - 1 : 0
                     }]
                 },
                 options: {
