@@ -373,10 +373,12 @@ pub const HTML_TEMPLATE: &str = r#"
                             <th data-i18n="header_added">Added</th>
                             <th data-i18n="header_deleted">Deleted</th>
                             <th data-i18n="header_total_changes">Total Changes</th>
+                            <th data-i18n="sum_churn">Churn Rate</th>
                             <th data-i18n="header_reviews">Reviews (Given)</th>
                             <th data-i18n="header_avg_lead_time">Avg Lead Time</th>
                             <th data-i18n="header_active_days">Active Days</th>
                             <th data-i18n="header_top_dirs">Top Dirs</th>
+                            <th>Top File</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -1134,14 +1136,28 @@ pub const HTML_TEMPLATE: &str = r#"
         function updateUserList(filteredData) {
             const userStats = {};
             filteredData.forEach(d => {
-                if (!userStats[d.author]) userStats[d.author] = { commits: 0, added: 0, deleted: 0, activeDays: new Set(), dirs: {}, leadTimes: [], reviewsGiven: 0 };
+                if (!userStats[d.author]) userStats[d.author] = { commits: 0, added: 0, deleted: 0, churn: 0, activeDays: new Set(), dirs: {}, files: {}, leadTimes: [], reviewsGiven: 0 };
                 userStats[d.author].commits += d.commit_count;
                 userStats[d.author].added += d.added;
                 userStats[d.author].deleted += d.deleted;
+                userStats[d.author].churn += d.churn;
                 userStats[d.author].activeDays.add(d.dateStr);
             });
             const currentUsers = new Set(Object.keys(userStats));
-            dashboardData.file_stats.forEach(fs => { if (currentUsers.has(fs.author)) { const path = filePaths[fs.file_idx]; if (path) { const dir = path.includes('/') ? path.split('/')[0] : '(root)'; userStats[fs.author].dirs[dir] = (userStats[fs.author].dirs[dir] || 0) + fs.count; } } });
+            dashboardData.file_stats.forEach(fs => { 
+                if (currentUsers.has(fs.author)) { 
+                    const path = filePaths[fs.file_idx]; 
+                    if (path) { 
+                        // Dirs: up to 2 levels (e.g. src/core)
+                        const parts = path.split('/');
+                        const dir = parts.length > 1 ? parts.slice(0, 2).join('/') : '(root)';
+                        userStats[fs.author].dirs[dir] = (userStats[fs.author].dirs[dir] || 0) + fs.count;
+                        
+                        // Files: full path
+                        userStats[fs.author].files[path] = (userStats[fs.author].files[path] || 0) + fs.count;
+                    } 
+                } 
+            });
             dashboardData.merge_events.forEach(me => { if (currentUsers.has(me.author)) userStats[me.author].leadTimes.push(me.days); });
             if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
                 document.getElementById('githubSection').style.display = 'block';
@@ -1158,7 +1174,26 @@ pub const HTML_TEMPLATE: &str = r#"
             tbody.innerHTML = '';
             Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits).forEach(([user, s]) => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td><td>${s.commits}</td><td>${s.added}</td><td>${s.deleted}</td><td>${s.added + s.deleted}</td><td>${s.reviewsGiven}</td><td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) : '-'}</td><td>${s.activeDays.size}</td><td>${Object.entries(s.dirs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(d => d[0]).join(', ')}</td>`;
+                const totalChanges = s.added + s.deleted;
+                const churnRate = totalChanges > 0 ? ((s.churn / totalChanges) * 100).toFixed(1) : '0.0';
+                
+                const sortedDirs = Object.entries(s.dirs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(d => d[0]).join(', ');
+                const topFileFull = Object.entries(s.files).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+                const topFileShort = topFileFull.split('/').pop();
+
+                tr.innerHTML = `
+                    <td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td>
+                    <td>${s.commits}</td>
+                    <td><span class="badge added">+${s.added.toLocaleString()}</span></td>
+                    <td><span class="badge deleted">-${s.deleted.toLocaleString()}</span></td>
+                    <td>${totalChanges.toLocaleString()}</td>
+                    <td><span class="badge" style="background: ${s.churn > (totalChanges * 0.5) ? '#fdf2f2' : '#f8f9fa'}; color: ${s.churn > (totalChanges * 0.5) ? '#e74c3c' : '#666'}">${churnRate}%</span></td>
+                    <td>${s.reviewsGiven}</td>
+                    <td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) : '-'}</td>
+                    <td>${s.activeDays.size}</td>
+                    <td style="font-size: 11px; color: #666;">${sortedDirs}</td>
+                    <td style="font-size: 11px; color: #666;" title="${topFileFull}">${topFileShort}</td>
+                `;
                 tbody.appendChild(tr);
             });
         }
