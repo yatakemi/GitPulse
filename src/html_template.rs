@@ -563,12 +563,51 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
             return result;
         }
 
+        function syncStateToUrl() {
+            const params = new URLSearchParams();
+            params.set('lang', currentLang);
+            params.set('metric', document.getElementById('metricSelect').value);
+            params.set('chart', document.getElementById('chartTypeSelect').value);
+            params.set('start', document.getElementById('startDate').value);
+            params.set('end', document.getElementById('endDate').value);
+            params.set('trend', document.getElementById('showTrend').checked);
+
+            const newUrl = window.location.pathname + '?' + params.toString();
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        function loadStateFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.has('lang')) {
+                currentLang = params.get('lang');
+                document.getElementById('langSelect').value = currentLang;
+                // Update translations without calling updateDashboard here (it will be called at the end)
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (translations[currentLang][key]) el.textContent = translations[currentLang][key];
+                });
+                document.querySelectorAll('[data-tooltip]').forEach(el => {
+                    const key = el.getAttribute('data-i18n-tooltip');
+                    if (key && translations[currentLang][key]) el.setAttribute('data-tooltip', translations[currentLang][key]);
+                });
+            }
+
+            if (params.has('metric')) document.getElementById('metricSelect').value = params.get('metric');
+            if (params.has('chart')) document.getElementById('chartTypeSelect').value = params.get('chart');
+            if (params.has('start')) document.getElementById('startDate').value = params.get('start');
+            if (params.has('end')) document.getElementById('endDate').value = params.get('end');
+            if (params.has('trend')) document.getElementById('showTrend').checked = params.get('trend') === 'true';
+        }
+
         function updateDashboard() {
             const metric = document.getElementById('metricSelect').value;
             const chartType = document.getElementById('chartTypeSelect').value;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const showTrend = document.getElementById('showTrend').checked;
+
+            syncStateToUrl();
 
             const filteredData = data.filter(d => d.dateStr >= startDate && d.dateStr <= endDate);
             
@@ -1441,6 +1480,7 @@ Purple: Avg Duration. Rising trend = Potential Overwork.">i</span>
         }
 
         // Initial render
+        loadStateFromUrl();
         updateDashboard();
     </script>
 </body>
