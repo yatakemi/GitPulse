@@ -381,7 +381,7 @@ pub const HTML_TEMPLATE: &str = r#"
                             <th data-i18n="header_avg_lead_time">Avg Lead Time</th>
                             <th data-i18n="header_active_days">Active Days</th>
                             <th data-i18n="header_top_dirs">Top Dirs</th>
-                            <th>Top File</th>
+                            <th>Top Files</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -1188,8 +1188,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 const churnRate = totalChanges > 0 ? ((s.churn / totalChanges) * 100).toFixed(1) : '0.0';
                 
                 const sortedDirs = Object.entries(s.dirs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(d => d[0]).join(', ');
-                const topFileFull = Object.entries(s.files).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
-                const topFileShort = topFileFull.split('/').pop();
+                
+                const topFiles = Object.entries(s.files)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(f => `<span title="${f[0]}">${f[0].split('/').pop()}</span>`)
+                    .join(', ');
 
                 tr.innerHTML = `
                     <td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td>
@@ -1202,7 +1206,7 @@ pub const HTML_TEMPLATE: &str = r#"
                     <td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) : '-'}</td>
                     <td>${s.activeDays.size}</td>
                     <td style="font-size: 11px; color: #666;">${sortedDirs}</td>
-                    <td style="font-size: 11px; color: #666;" title="${topFileFull}">${topFileShort}</td>
+                    <td style="font-size: 11px; color: #666;">${topFiles || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
