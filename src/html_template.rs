@@ -1260,13 +1260,19 @@ pub const HTML_TEMPLATE: &str = r#"
             });
             dashboardData.merge_events.forEach(me => { if (currentUsers.has(me.author)) userStats[me.author].leadTimes.push(me.days); });
             
-            // Aggregate GitHub Reviews using aliases
+            // Aggregate GitHub Reviews using aliases AND date filters
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
             if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
                 dashboardData.github_prs.forEach(pr => {
                     pr.reviews.forEach(rev => { 
-                        const normReviewer = normalizeAuthor(rev.user);
-                        if (userStats[normReviewer]) {
-                            userStats[normReviewer].reviewsGiven++;
+                        const revDate = rev.submitted_at.split('T')[0];
+                        if (revDate >= startDate && revDate <= endDate) {
+                            const normReviewer = normalizeAuthor(rev.user);
+                            if (userStats[normReviewer]) {
+                                userStats[normReviewer].reviewsGiven++;
+                            }
                         }
                     });
                 });
