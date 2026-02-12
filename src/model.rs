@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use crate::github::GitHubPR;
 
@@ -76,7 +76,7 @@ pub struct MergeEvent {
 pub struct CommitStats {
     pub hash: String,
     pub author: String,
-    pub date: DateTime<Utc>,
+    pub date: DateTime<FixedOffset>,
     pub added: usize,
     pub deleted: usize,
     pub email: String,

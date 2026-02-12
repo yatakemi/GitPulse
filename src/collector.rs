@@ -1,6 +1,6 @@
 use crate::model::CommitStats;
 use anyhow::{Context, Result};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::TimeZone;
 use git2::{Repository, Sort};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs::File;
@@ -71,7 +71,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let author_email = author.email().unwrap_or("").to_string();
         
         let time = commit.time();
-        let date: DateTime<Utc> = Utc.timestamp_opt(time.seconds(), 0).unwrap();
+        let offset = chrono::FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
+        let date = offset.timestamp_opt(time.seconds(), 0).unwrap();
 
         let mut added = 0;
         let mut deleted = 0;
