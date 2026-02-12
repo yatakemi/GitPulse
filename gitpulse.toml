@@ -5,3 +5,11 @@
 # For sample_repo
 "alice.personal@gmail.com" = "Alice"
 "Bob_Work" = "Bob"
+
+# Files and directories to exclude from stats
+exclude = [
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "target/",
+    "node_modules/",
+]

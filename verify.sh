@@ -21,11 +21,11 @@ git add file.txt
 git commit -m "Second commit"
 
 # Run collect
-../target/release/git-product-perf collect --repo . --out ../stats.json
+../target/release/gitpulse collect --repo . --out ../stats.json
 
 # Run visualize
-../target/release/git-product-perf visualize --data ../stats.json --out ../report.html --format html
-../target/release/git-product-perf visualize --data ../stats.json --out ../report.csv --format csv
+../target/release/gitpulse visualize --data ../stats.json --out ../report.html --format html
+../target/release/gitpulse visualize --data ../stats.json --out ../report.csv --format csv
 
 # Check outputs
 if [ -f "../stats.json" ]; then

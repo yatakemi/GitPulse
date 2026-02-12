@@ -63,9 +63,13 @@ Then open `report.html` in your browser.
 gitpulse visualize --data stats.json --out report.csv --format csv
 ```
 
-## Configuration (User Unification)
+## Configuration
 
-You can unify multiple author names/emails into a single user by creating a `gitpulse.toml` file in your working directory.
+You can customize GitPulse behavior by creating a `gitpulse.toml` file in your working directory.
+
+### User Unification (Alias)
+
+Unify multiple author names/emails into a single user.
 
 ```toml
 [alias]
@@ -79,7 +83,27 @@ You can unify multiple author names/emails into a single user by creating a `git
 "Charly" = "Charlie"
 ```
 
-**Note:** GitHub noreply emails (e.g., `123456+username@users.noreply.github.com`) are **automatically merged** to `username` by default, so you don't need to define them manually unless you want to rename them.
+**Note:** GitHub noreply emails (e.g., `123456+username@users.noreply.github.com`) are **automatically merged** to `username` by default.
+
+### File & Directory Exclusion
+
+Exclude specific files or directories (like lock files or dependencies) from the statistics and line counts.
+
+```toml
+# Files and directories to exclude from stats
+exclude = [
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "target/",
+    "node_modules/",
+    "vendor/*.c",
+]
+```
+
+Exclusion supports:
+- **Exact match**: `pnpm-lock.yaml`
+- **Directory prefix**: `node_modules/` (excludes everything inside)
+- **Wildcards**: Basic support for `*` at the beginning or end (e.g., `*.lock`, `vendor/*`).
 
 ## Advanced Analysis (v0.6+)
 

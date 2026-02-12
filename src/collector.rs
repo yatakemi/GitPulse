@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
+pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
     // First pass: Count total commits for progress bar
@@ -56,13 +56,14 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
                 // Initial commit
                 if let Ok(tree) = commit.tree() {
                     let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
-                    let stats = diff.stats()?;
-                    added = stats.insertions();
-                    deleted = stats.deletions();
                     
-                    // Collect file paths
+                    // Manual line counting to support exclusions
                     diff.foreach(&mut |delta, _float| {
                         if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                            if is_excluded(path, &config.exclude) {
+                                return true; // Skip this file
+                            }
+
                             let path_string = path.to_string();
                             let idx = if let Some(&i) = file_map.get(&path_string) {
                                 i
@@ -75,20 +76,33 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
                             commit_files.push(idx);
                         }
                         true
-                    }, None, None, None)?;
+                    }, None, None, Some(&mut |delta, _hunk, line| {
+                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                            if is_excluded(path, &config.exclude) {
+                                return true;
+                            }
+                        }
+                        match line.origin() {
+                            '+' => added += 1,
+                            '-' => deleted += 1,
+                            _ => {}
+                        }
+                        true
+                    }))?;
                 }
             } else {
                 let parent = commit.parent(0)?;
                 let tree = commit.tree()?;
                 let parent_tree = parent.tree()?;
                 let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
-                let stats = diff.stats()?;
-                added = stats.insertions();
-                deleted = stats.deletions();
-
-                // Collect file paths
+                
+                // Manual line counting to support exclusions
                 diff.foreach(&mut |delta, _float| {
                     if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        if is_excluded(path, &config.exclude) {
+                            return true; // Skip this file
+                        }
+
                         let path_string = path.to_string();
                         let idx = if let Some(&i) = file_map.get(&path_string) {
                             i
@@ -101,7 +115,19 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
                         commit_files.push(idx);
                     }
                     true
-                }, None, None, None)?;
+                }, None, None, Some(&mut |delta, _hunk, line| {
+                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        if is_excluded(path, &config.exclude) {
+                            return true;
+                        }
+                    }
+                    match line.origin() {
+                        '+' => added += 1,
+                        '-' => deleted += 1,
+                        _ => {}
+                    }
+                    true
+                }))?;
             }
         }
 
@@ -133,4 +159,24 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path) -> Result<()> {
 
     println!("Collected stats for {} commits into {:?}", report_data.commits.len(), output_path);
     Ok(())
+}
+
+fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
+    for pattern in exclude_patterns {
+        if pattern.ends_with('/') {
+            if path.starts_with(pattern) {
+                return true;
+            }
+        } else if path == pattern {
+            return true;
+        }
+        // Basic glob support: handle * at the beginning or end
+        if pattern.starts_with('*') && path.ends_with(&pattern[1..]) {
+            return true;
+        }
+        if pattern.ends_with('*') && path.starts_with(&pattern[..pattern.len()-1]) {
+            return true;
+        }
+    }
+    false
 }

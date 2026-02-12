@@ -8,6 +8,8 @@ use anyhow::Result;
 pub struct Config {
     #[serde(default)]
     pub alias: HashMap<String, String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 
 impl Config {

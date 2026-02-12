@@ -47,7 +47,9 @@ fn main() -> anyhow::Result<()> {
 
     match &cli.command {
         Commands::Collect { repo, out } => {
-            collector::collect_stats(repo, out)?;
+            let config_path = std::path::Path::new("gitpulse.toml");
+            let config = config::Config::load(config_path).unwrap_or_default();
+            collector::collect_stats(repo, out, &config)?;
         }
         Commands::Visualize { data, out, format } => {
             visualizer::visualize_stats(data, out, format)?;
