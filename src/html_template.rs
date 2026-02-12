@@ -391,25 +391,6 @@ pub const HTML_TEMPLATE: &str = r#"
                 </table>
             </div>
         </div>
-
-        <div class="card" id="githubSection" style="max-width: none; margin-bottom: 30px; display: none;">
-            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 15px; text-align: left;">🐙 GitHub Review Activity (Top 100 PRs)</h2>
-            <div class="table-container">
-                <table class="user-table">
-                    <thead>
-                        <tr>
-                            <th>PR</th>
-                            <th>Author</th>
-                            <th>Status</th>
-                            <th>Reviews</th>
-                        </tr>
-                    </thead>
-                    <tbody id="githubTableBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -636,7 +617,13 @@ pub const HTML_TEMPLATE: &str = r#"
         }
 
         const dashboardData = {{ data | json_encode() | safe }};
+        const aliases = {{ aliases | json_encode() | safe }};
         const filePaths = dashboardData.file_paths;
+        
+        function normalizeAuthor(name) {
+            if (aliases && aliases[name]) return aliases[name];
+            return name;
+        }
         
         const data = dashboardData.daily_stats.map(d => {
             const dateObj = new Date(d.date);
@@ -1214,17 +1201,19 @@ pub const HTML_TEMPLATE: &str = r#"
                 } 
             });
             dashboardData.merge_events.forEach(me => { if (currentUsers.has(me.author)) userStats[me.author].leadTimes.push(me.days); });
+            
+            // Aggregate GitHub Reviews using aliases
             if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
-                document.getElementById('githubSection').style.display = 'block';
-                const ghTbody = document.getElementById('githubTableBody');
-                ghTbody.innerHTML = '';
                 dashboardData.github_prs.forEach(pr => {
-                    pr.reviews.forEach(rev => { if (userStats[rev.user]) userStats[rev.user].reviewsGiven++; });
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `<td><a href="${pr.html_url}" target="_blank">#${pr.number} ${pr.title}</a></td><td>${pr.author}</td><td>${pr.reviews.length > 0 ? 'Reviewed' : 'Pending'}</td><td>${pr.reviews.map(r => `<span class="badge" style="background: ${r.state === 'APPROVED' ? '#ecfaf2' : '#fdf2f2'}; color: ${r.state === 'APPROVED' ? '#27ae60' : '#e74c3c'}">${r.user}</span>`).join(' ')}</td>`;
-                    ghTbody.appendChild(tr);
+                    pr.reviews.forEach(rev => { 
+                        const normReviewer = normalizeAuthor(rev.user);
+                        if (userStats[normReviewer]) {
+                            userStats[normReviewer].reviewsGiven++;
+                        }
+                    });
                 });
             }
+
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
             Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits).forEach(([user, s]) => {

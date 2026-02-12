@@ -111,8 +111,17 @@ fn export_csv(stats: &[AggregatedStats], output_path: &Path) -> Result<()> {
 
 fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()> {
     let dashboard_data = aggregate_dashboard_data(data);
+    
+    let config_path = Path::new("gitpulse.toml");
+    let config = if config_path.exists() {
+        crate::config::Config::load(config_path).unwrap_or_default()
+    } else {
+        crate::config::Config::default()
+    };
+
     let mut context = TeraContext::new();
     context.insert("data", &dashboard_data);
+    context.insert("aliases", &config.alias);
     let rendered = Tera::one_off(crate::html_template::HTML_TEMPLATE, &context, false)
         .context("Failed to render HTML template")?;
     let mut file = File::create(output_path)?;
