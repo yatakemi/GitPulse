@@ -647,6 +647,7 @@ pub const HTML_TEMPLATE: &str = r#"
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
+        const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
         let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, ctxChart, forecastChart;

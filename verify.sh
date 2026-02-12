@@ -49,4 +49,15 @@ else
     exit 1
 fi
 
+# JavaScript Integrity Check
+echo "🔍 Checking JavaScript integrity in report.html..."
+CHART_CONTEXTS=$(grep -oE "new Chart\([^,)]+" "../report.html" | cut -d'(' -f2)
+for ctx in $CHART_CONTEXTS; do
+    if ! grep -q "const $ctx =" "../report.html"; then
+        echo "FAILURE: JavaScript error detected! Variable '$ctx' is used in 'new Chart()' but not defined with 'const $ctx ='."
+        exit 1
+    fi
+done
+echo "SUCCESS: JavaScript integrity check passed"
+
 echo "All tests passed!"
