@@ -1120,7 +1120,7 @@ pub const HTML_TEMPLATE: &str = r#"
             }
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
-            Object.entries(userStats).sort((a, b) => (b[1].added + b[1].deleted) - (a[1].added + a[1].deleted)).forEach(([user, s]) => {
+            Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits).forEach(([user, s]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td><td>${s.commits}</td><td>${s.added}</td><td>${s.deleted}</td><td>${s.added + s.deleted}</td><td>${s.reviewsGiven}</td><td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) : '-'}</td><td>${s.activeDays.size}</td><td>${Object.entries(s.dirs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(d => d[0]).join(', ')}</td>`;
                 tbody.appendChild(tr);
