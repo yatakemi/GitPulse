@@ -264,6 +264,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 <div class="forecast-card">
                     <div class="forecast-label" data-i18n="label_est_completion">Estimated Completion Date</div>
                     <div class="forecast-value" id="estCompletionValue">-</div>
+                    <div id="estCompletionRange" style="font-size: 12px; color: #7f8c8d; margin-top: 5px;"></div>
                     <div class="goal-setter">
                         <span data-i18n="label_target_goal">Target Goal</span>
                         <input type="number" id="targetGoalInput" value="1000" onchange="updateDashboard()">
@@ -1018,9 +1019,21 @@ pub const HTML_TEMPLATE: &str = r#"
             const weeklyStats = getWeeklyStats(filteredData);
             if (weeklyStats.length < 2) {
                 ['currentVelocityValue', 'velocityTrendValue', 'projectedThroughputValue', 'estCompletionValue'].forEach(id => document.getElementById(id).textContent = '-');
+                document.getElementById('estCompletionRange').textContent = '';
                 if (forecastChart) forecastChart.destroy();
                 return;
             }
+
+            const history = weeklyStats.map(w => w.commits);
+            const sum = history.reduce((a, b) => a + b, 0);
+            const mean = sum / history.length;
+            const variance = history.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / history.length;
+            const stdev = Math.sqrt(variance);
+            
+            // Confidence: Lower CoV (Coefficient of Variation) = Higher confidence
+            const cov = stdev / (mean || 1);
+            const confidence = cov < 0.2 ? 'High' : cov < 0.5 ? 'Medium' : 'Low';
+            const confidenceColor = confidence === 'High' ? '#27ae60' : confidence === 'Medium' ? '#f39c12' : '#e74c3c';
 
             const last4Weeks = weeklyStats.slice(-4).reverse();
             const currentVelocity = last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length;
@@ -1036,7 +1049,7 @@ pub const HTML_TEMPLATE: &str = r#"
             trendEl.textContent = `${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend).toFixed(1)}%`;
             trendEl.className = `forecast-trend ${trend >= 0 ? 'up' : 'down'}`;
 
-            document.getElementById('currentVelocityValue').textContent = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week`;
+            document.getElementById('currentVelocityValue').innerHTML = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week <span style="font-size: 12px; color: ${confidenceColor}; font-weight: normal;">(Confidence: ${confidence})</span>`;
             
             const projected60 = Math.round(currentVelocity * (60/7));
             document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
@@ -1047,10 +1060,20 @@ pub const HTML_TEMPLATE: &str = r#"
             const remaining = targetGoal - currentTotalCommits;
             
             if (remaining > 0 && currentVelocity > 0) {
-                const weeksToGoal = remaining / currentVelocity;
-                const estDate = new Date();
-                estDate.setDate(estDate.getDate() + (weeksToGoal * 7));
-                document.getElementById('estCompletionValue').textContent = estDate.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                function calcDate(v) {
+                    const weeks = remaining / Math.max(v, 0.1);
+                    const d = new Date();
+                    d.setDate(d.getDate() + (weeks * 7));
+                    return d.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric' });
+                }
+
+                const likelyDate = calcDate(currentVelocity);
+                const optimisticDate = calcDate(currentVelocity + stdev);
+                const pessimisticDate = calcDate(Math.max(currentVelocity - stdev, 0.5));
+
+                document.getElementById('estCompletionValue').textContent = likelyDate;
+                document.getElementById('estCompletionRange').innerHTML = 
+                    `🚀 Optimistic: ${optimisticDate}<br>🐢 Pessimistic: ${pessimisticDate}`;
                 
                 // Add predictive insight
                 const insightsContainer = document.getElementById('insightsGrid');
@@ -1060,15 +1083,16 @@ pub const HTML_TEMPLATE: &str = r#"
                     <div class="insight-icon">🎯</div>
                     <div class="insight-body">
                         <div class="insight-title">${t('insight_predicted_goal_title')}</div>
-                        <div class="insight-desc">${t('insight_predicted_goal_desc').replace('{target}', targetGoal).replace('{date}', estDate.toLocaleDateString())}</div>
+                        <div class="insight-desc">Based on <strong>${confidence}</strong> confidence data, you'll likely reach ${targetGoal} commits by ${likelyDate}.</div>
                     </div>
                 `;
                 insightsContainer.prepend(card);
             } else {
                 document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Goal Reached!' : '-';
+                document.getElementById('estCompletionRange').textContent = '';
             }
 
-            updateForecastChart(weeklyStats, currentVelocity);
+            updateForecastChart(weeklyStats, currentVelocity, stdev);
         }
 
         function getWeeklyStats(filteredData) {
@@ -1090,16 +1114,18 @@ pub const HTML_TEMPLATE: &str = r#"
             return Object.values(weeklyMap).sort((a, b) => a.week_start.localeCompare(b.week_start));
         }
 
-        function updateForecastChart(weeklyStats, currentVelocity) {
+        function updateForecastChart(weeklyStats, currentVelocity, stdev) {
             if (forecastChart) forecastChart.destroy();
 
             const labels = weeklyStats.map(w => w.week_start);
             const dataPoint = weeklyStats.map(w => w.commits);
             
             // Projections (next 4 weeks)
-            const projectionLabels = [];
             const projectionData = new Array(labels.length - 1).fill(null);
             projectionData.push(dataPoint[dataPoint.length - 1]); // connector
+
+            const upperData = [...projectionData];
+            const lowerData = [...projectionData];
 
             const lastDate = new Date(labels[labels.length - 1]);
             for (let i = 1; i <= 4; i++) {
@@ -1108,6 +1134,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 const nextDateStr = nextDate.toISOString().split('T')[0];
                 labels.push(nextDateStr);
                 projectionData.push(currentVelocity);
+                upperData.push(currentVelocity + stdev);
+                lowerData.push(Math.max(currentVelocity - stdev, 0));
             }
 
             forecastChart = new Chart(forecastCtx, {
@@ -1128,6 +1156,23 @@ pub const HTML_TEMPLATE: &str = r#"
                             data: projectionData,
                             borderColor: '#3498db',
                             borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: 'Range (Confidence)',
+                            data: upperData,
+                            borderColor: 'transparent',
+                            backgroundColor: '#3498db11',
+                            pointRadius: 0,
+                            fill: '+1', // Fill down to lowerData (index 3)
+                            tension: 0
+                        },
+                        {
+                            label: 'Lower Bound',
+                            data: lowerData,
+                            borderColor: 'transparent',
                             pointRadius: 0,
                             fill: false,
                             tension: 0
