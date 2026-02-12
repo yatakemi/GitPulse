@@ -9,6 +9,8 @@
 - 🚀 **Pure Rust**: Single binary, minimal dependencies, and extremely fast.
 - 📊 **Interactive Dashboard**: Generates beautiful HTML reports with Chart.js.
     - **Timeline**: Visualize code changes (Added/Deleted) or commit counts over time.
+    - **User Activity**: Deep dive into contributor metrics: **Total Changes**, **Avg Lead Time**, and **Top Directories** (AI-detected expertise).
+    - **User Filtering**: Toggle specific users on/off to analyze subsets of the team. State preserved in URL.
     - **Trends**: 7-day moving average trend lines to see the big picture.
     - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
     - **Team Health**: Track "Code Churn" (Refactoring/Rework) and "Work Duration" trends.

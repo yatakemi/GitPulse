@@ -197,6 +197,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
                     if days <= 90 {
                         merge_events.push(MergeEvent {
                             branch: branch_name,
+                            author: commit.author.clone(),
                             days,
                             date: date_str,
                         });

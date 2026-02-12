@@ -45,6 +45,7 @@ pub struct FileStat {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MergeEvent {
     pub branch: String,
+    pub author: String,
     pub days: u32,
     pub date: String,
 }
