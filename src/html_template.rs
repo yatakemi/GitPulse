@@ -7,6 +7,7 @@ pub const HTML_TEMPLATE: &str = r#"
     <title>Git Productivity Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f8f9fa; color: #333; }
         h1 { text-align: center; margin-bottom: 30px; color: #2c3e50; }
@@ -270,6 +271,28 @@ pub const HTML_TEMPLATE: &str = r#"
             <div class="user-checkbox-grid" id="userCheckboxes">
                 <!-- Populated by JS -->
             </div>
+        </div>
+
+        <!-- Impact Assessment Section -->
+        <div id="impactSection" class="card" style="max-width: none; margin-bottom: 25px; border-top: 4px solid #9b59b6; display: none;">
+            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 15px;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
+            <div style="overflow-x: auto;">
+                <table class="user-table" id="impactTable">
+                    <thead>
+                        <tr>
+                            <th data-i18n="header_metric">Metric</th>
+                            <th data-i18n="header_before">Before Initiative</th>
+                            <th data-i18n="header_after">After Initiative</th>
+                            <th data-i18n="header_change">Change (Δ%)</th>
+                            <th data-i18n="header_status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="impactTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="impactDescription" style="margin-top: 15px; font-size: 13px; color: #666; line-height: 1.6;"></div>
         </div>
 
         <!-- Predictive Analysis Section -->
@@ -552,7 +575,20 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_response_time: "Avg Response Time",
                 sum_iterations: "Avg Iterations",
                 chart_reciprocity: "Review Reciprocity Matrix",
-                chart_scatter: "PR Size vs Lead Time"
+                chart_scatter: "PR Size vs Lead Time",
+                title_impact_assessment: "Initiative Impact Assessment",
+                header_metric: "Metric",
+                header_before: "Before Initiative",
+                header_after: "After Initiative",
+                header_change: "Change (Δ%)",
+                header_status: "Status",
+                metric_throughput: "Throughput (Merged PRs/Week)",
+                metric_lead_time_p50: "Median Lead Time",
+                metric_lead_time_p90: "90th Percentile Lead Time",
+                metric_stability: "Process Stability (Lead Time StdDev)",
+                status_improved: "Improved",
+                status_declined: "Declined",
+                status_stable: "Stable"
             },
             ja: {
                 title: "Git生産性レポート",
@@ -659,7 +695,20 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_response_time: "平均反応時間",
                 sum_iterations: "平均イテレーション",
                 chart_reciprocity: "レビュー相互関係マトリクス",
-                chart_scatter: "PRサイズ vs リードタイム"
+                chart_scatter: "PRサイズ vs リードタイム",
+                title_impact_assessment: "施策インパクト評価",
+                header_metric: "指標",
+                header_before: "施策前",
+                header_after: "施策後",
+                header_change: "変化率 (Δ%)",
+                header_status: "状態",
+                metric_throughput: "スループット (マージ数/週)",
+                metric_lead_time_p50: "リードタイム (中央値)",
+                metric_lead_time_p90: "リードタイム (90パーセンタイル)",
+                metric_stability: "プロセスの安定性 (標準偏差)",
+                status_improved: "改善",
+                status_declined: "低下",
+                status_stable: "安定"
             }
         };
 
@@ -833,6 +882,7 @@ pub const HTML_TEMPLATE: &str = r#"
             updateLeadTimeChart(filteredData, startDate, endDate);
             updateReviewActivityChart(startDate, endDate);
             updateGitHubAdvancedMetrics(startDate, endDate);
+            updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
@@ -1534,6 +1584,120 @@ pub const HTML_TEMPLATE: &str = r#"
                     }
                 }
             });
+        }
+
+        function updateImpactAssessment() {
+            const impactSection = document.getElementById('impactSection');
+            const impactTableBody = document.getElementById('impactTableBody');
+            
+            if (!dashboardData.events || dashboardData.events.length === 0 || !dashboardData.github_prs || dashboardData.github_prs.length === 0) {
+                impactSection.style.display = 'none';
+                return;
+            }
+
+            impactSection.style.display = 'block';
+            impactTableBody.innerHTML = '';
+            
+            // For simplicity, we assess the most recent event
+            const event = dashboardData.events[dashboardData.events.length - 1];
+            const eventDate = new Date(event.date);
+            const fourWeeksBefore = new Date(eventDate);
+            fourWeeksBefore.setDate(eventDate.getDate() - 28);
+            
+            const beforePRs = dashboardData.github_prs.filter(pr => {
+                const d = new Date(pr.created_at);
+                return d >= fourWeeksBefore && d < eventDate;
+            });
+            
+            const afterPRs = dashboardData.github_prs.filter(pr => {
+                const d = new Date(pr.created_at);
+                return d >= eventDate;
+            });
+
+            if (beforePRs.length === 0 || afterPRs.length === 0) {
+                document.getElementById('impactDescription').textContent = "Not enough data before or after the initiative to perform assessment.";
+                return;
+            }
+
+            function getStats(prs) {
+                const leadTimes = prs.filter(pr => pr.merged_at).map(pr => (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+                leadTimes.sort((a, b) => a - b);
+                
+                const median = leadTimes.length > 0 ? leadTimes[Math.floor(leadTimes.length * 0.5)] : 0;
+                const p90 = leadTimes.length > 0 ? leadTimes[Math.floor(leadTimes.length * 0.9)] : 0;
+                
+                const avg = leadTimes.reduce((a, b) => a + b, 0) / (leadTimes.length || 1);
+                const stdDev = Math.sqrt(leadTimes.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (leadTimes.length || 1));
+                
+                const mergedCount = prs.filter(pr => pr.merged_at).length;
+                const weeks = Math.max(1, (Math.max(...prs.map(pr => new Date(pr.created_at))) - Math.min(...prs.map(pr => new Date(pr.created_at)))) / (1000 * 60 * 60 * 24 * 7));
+                const throughput = mergedCount / weeks;
+
+                const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED')).length;
+                const reworkRate = (reworkCount / (prs.length || 1)) * 100;
+
+                return { throughput, median, p90, stdDev, reworkRate };
+            }
+
+            const before = getStats(beforePRs);
+            const after = getStats(afterPRs);
+
+            const metrics = [
+                { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false },
+                { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true },
+                { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true },
+                { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true },
+                { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true }
+            ];
+
+            metrics.forEach(m => {
+                const diff = m.b > 0 ? ((m.a - m.b) / m.b) * 100 : 0;
+                const isImproved = m.lowerIsBetter ? m.a < m.b : m.a > m.b;
+                const status = Math.abs(diff) < 5 ? t('status_stable') : (isImproved ? t('status_improved') : t('status_declined'));
+                const statusColor = Math.abs(diff) < 5 ? '#7f8c8d' : (isImproved ? '#27ae60' : '#e74c3c');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${t(m.id)}</strong></td>
+                    <td>${m.b.toFixed(2)}${m.unit}</td>
+                    <td>${m.a.toFixed(2)}${m.unit}</td>
+                    <td style="color: ${statusColor}; font-weight: bold;">${diff > 0 ? '+' : ''}${diff.toFixed(1)}%</td>
+                    <td><span class="badge" style="background: ${statusColor}22; color: ${statusColor}">${status}</span></td>
+                `;
+                impactTableBody.appendChild(tr);
+            });
+
+            document.getElementById('impactDescription').innerHTML = `Assessment of initiative: <strong>${event.name}</strong> (Started ${event.date})`;
+            
+            // Update Timeline with vertical lines
+            updateTimelineWithEvents();
+        }
+
+        function updateTimelineWithEvents() {
+            if (!mainChart || !dashboardData.events) return;
+            
+            const annotations = {};
+            dashboardData.events.forEach((event, idx) => {
+                annotations['line' + idx] = {
+                    type: 'line',
+                    xMin: event.date,
+                    xMax: event.date,
+                    borderColor: '#9b59b6',
+                    borderWidth: 2,
+                    borderDash: [6, 6],
+                    label: {
+                        display: true,
+                        content: event.name,
+                        position: 'start',
+                        backgroundColor: '#9b59b6',
+                        color: '#fff',
+                        font: { size: 10 }
+                    }
+                };
+            });
+
+            mainChart.options.plugins.annotation = { annotations };
+            mainChart.update();
         }
 
         function updateUserList(filteredData) {

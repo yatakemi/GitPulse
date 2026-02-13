@@ -175,7 +175,7 @@ fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()
         println!("   (Tip: Add these to [alias] in gitpulse.toml to link them to local users)");
     }
 
-    let dashboard_data = aggregate_dashboard_data(data);
+    let dashboard_data = aggregate_dashboard_data(data, &config);
     
     let mut context = TeraContext::new();
     context.insert("data", &dashboard_data);
@@ -188,7 +188,7 @@ fn export_html(data: &crate::model::ReportData, output_path: &Path) -> Result<()
     Ok(())
 }
 
-fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::DashboardData {
+fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::config::Config) -> crate::model::DashboardData {
     use std::collections::{HashMap, HashSet};
     use crate::model::{DailyStat, FileStat, MergeEvent, WeeklyStat};
 
@@ -348,5 +348,6 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         github_prs: data.github_prs.clone(),
         file_paths: data.file_paths.clone(),
         commits: data.commits.clone(),
+        events: config.events.clone(),
     }
 }

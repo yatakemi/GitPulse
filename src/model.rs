@@ -20,6 +20,7 @@ pub struct DashboardData {
     pub github_prs: Vec<GitHubPR>,
     pub file_paths: Vec<String>,
     pub commits: Vec<CommitStats>,
+    pub events: Vec<crate::config::EventConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

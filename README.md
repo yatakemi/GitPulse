@@ -98,6 +98,20 @@ Unify multiple author names/emails into a single user.
 
 **Note:** GitHub noreply emails (e.g., `123456+username@users.noreply.github.com`) are **automatically merged** to `username` by default.
 
+### Initiative Tracking (Events)
+
+Mark specific dates when you started a new initiative to assess its impact on productivity.
+
+```toml
+[[events]]
+date = "2026-02-01"
+name = "New Code Review Policy"
+
+[[events]]
+date = "2026-02-15"
+name = "CI Pipeline Optimization"
+```
+
 ### File & Directory Exclusion
 
 Exclude specific files or directories (like lock files or dependencies) from the statistics and line counts.
@@ -156,6 +170,13 @@ GitPulse analyzes the last 4 weeks of commit velocity to predict future throughp
 - **Current Velocity**: Average commits per week with a confidence interval.
 - **Target Goal Estimation**: Set a target commit goal to see an estimated completion date based on your team's current pace.
 - **Trend Analysis**: See if your team is accelerating or slowing down.
+
+### 📈 Initiative Impact Assessment (v0.15+)
+Evaluate the ROI of your process changes (e.g., CI/CD introduction, new review rules). Define an "event" in `gitpulse.toml` to see a before/after comparison:
+- **Throughput Change**: Merged PRs/Week (Volume of work).
+- **Process Stability**: Lead Time P50 (Median) vs P90 (Worst case).
+- **Rework Impact**: Changes in Churn and Rework rates.
+- **Visual Annotation**: Initiatives are marked with vertical dashed lines on the timeline charts.
 
 ## Architecture
 
