@@ -239,22 +239,34 @@ pub const HTML_TEMPLATE: &str = r#"
         <!-- NEW: Advanced GitHub Summary -->
         <div class="summary-cards" id="githubAdvancedSummary" style="display: none; margin-top: -10px; margin-bottom: 30px;">
             <div class="card" style="border-top: 4px solid #e67e22;">
-                <h3 data-i18n="sum_rework_rate">Rework Rate</h3>
+                <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span data-i18n="sum_rework_rate">Rework Rate</span>
+                    <span class="info-icon" data-tooltip="Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.">i</span>
+                </h3>
                 <div class="value" id="reworkRateValue">-</div>
                 <div style="font-size: 11px; color: #7f8c8d;">% of PRs with Request Changes</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
-                <h3 data-i18n="sum_review_depth">Review Depth</h3>
+                <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span data-i18n="sum_review_depth">Review Depth</span>
+                    <span class="info-icon" data-tooltip="Average number of comments per PR. Measures the thoroughness of the review process.">i</span>
+                </h3>
                 <div class="value" id="reviewDepthValue">-</div>
                 <div style="font-size: 11px; color: #7f8c8d;">Avg Comments / PR</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
-                <h3 data-i18n="sum_response_time">Avg Response Time</h3>
+                <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span data-i18n="sum_response_time">Avg Response Time</span>
+                    <span class="info-icon" data-tooltip="Average time from PR creation to the very first review or comment. Measures waiting time for developers.">i</span>
+                </h3>
                 <div class="value" id="avgResponseTimeValue">-</div>
                 <div style="font-size: 11px; color: #7f8c8d;">Time to first reaction</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
-                <h3 data-i18n="sum_iterations">Avg Iterations</h3>
+                <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span data-i18n="sum_iterations">Avg Iterations</span>
+                    <span class="info-icon" data-tooltip="Average number of review-and-fix cycles per PR. High iterations suggest complex tasks or unclear requirements.">i</span>
+                </h3>
                 <div class="value" id="avgIterationsValue">-</div>
                 <div style="font-size: 11px; color: #7f8c8d;">Review-to-Merge cycles</div>
             </div>
@@ -293,6 +305,21 @@ pub const HTML_TEMPLATE: &str = r#"
                 </table>
             </div>
             <div id="impactDescription" style="margin-top: 15px; font-size: 13px; color: #666; line-height: 1.6;"></div>
+            
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; font-size: 12px; color: #7f8c8d;">
+                <div>
+                    <strong>Throughput:</strong> <span data-i18n="desc_throughput">Measures volume. Higher means the team is delivering more completed work.</span>
+                </div>
+                <div>
+                    <strong>P90 Lead Time:</strong> <span data-i18n="desc_p90">Worst-case scenario. Lower means fewer PRs are being "stuck" or forgotten.</span>
+                </div>
+                <div>
+                    <strong>Stability:</strong> <span data-i18n="desc_stability">Standard deviation of Lead Time. Lower means the process is consistent and predictable.</span>
+                </div>
+                <div>
+                    <strong>Rework Rate:</strong> <span data-i18n="desc_rework">Percentage of PRs needing fixes. Lower suggests better alignment before code is written.</span>
+                </div>
+            </div>
         </div>
 
         <!-- Predictive Analysis Section -->
@@ -593,7 +620,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 metric_iterations: "Avg Review Iterations",
                 status_improved: "Improved",
                 status_declined: "Declined",
-                status_stable: "Stable"
+                status_stable: "Stable",
+                desc_throughput: "Measures volume. Higher means the team is delivering more completed work.",
+                desc_p90: "Worst-case scenario. Lower means fewer PRs are being 'stuck' or forgotten.",
+                desc_stability: "Standard deviation of Lead Time. Lower means the process is consistent and predictable.",
+                desc_rework: "Percentage of PRs needing fixes. Lower suggests better initial alignment."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -717,7 +748,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 metric_iterations: "平均イテレーション",
                 status_improved: "改善",
                 status_declined: "低下",
-                status_stable: "安定"
+                status_stable: "安定",
+                desc_throughput: "生産量を測定。高いほどチームが多くの成果（マージ）を届けていることを示します。",
+                desc_p90: "ワーストケースの指標。低いほど「放置」や「停滞」しているPRが少ないことを示します。",
+                desc_stability: "標準偏差で測定。低いほどプロセスが誰に対しても安定・予測可能であることを示します。",
+                desc_rework: "修正が必要だったPRの割合。低いほど実装前の合意形成がスムーズであることを示します。"
             }
         };
 
