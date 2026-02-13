@@ -2021,6 +2021,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 if (typeof vA === 'string') {
                     return currentSort.direction === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
                 }
+
+                // Push non-existent data (-1) to the bottom
+                if (vA === -1 && vB === -1) return 0;
+                if (vA === -1) return 1;
+                if (vB === -1) return -1;
+
                 return currentSort.direction === 'asc' ? vA - vB : vB - vA;
             });
 
@@ -2079,6 +2085,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 return;
             }
 
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
             detailsContent.innerHTML = `
                 <table class="user-table" style="font-size: 12px;">
                     <thead>
@@ -2093,15 +2105,21 @@ pub const HTML_TEMPLATE: &str = r#"
                     </thead>
                     <tbody>
                         ${userCommits.map(c => `
-                            <tr>
+                            <tr style="${c.is_merge ? 'background-color: #fcfaff;' : ''}">
                                 <td style="font-family: monospace; color: #7f8c8d;">${c.hash.substring(0, 7)}</td>
                                 <td style="white-space: nowrap;">${c.date.split('T')[0]}</td>
-                                <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;" title="${c.message}">${c.message}</td>
+                                <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(c.message)}">
+                                    ${c.is_merge ? '🔀 ' : ''}${escapeHtml(c.message)}
+                                </td>
                                 <td class="badge added">+${c.added}</td>
                                 <td class="badge deleted">-${c.deleted}</td>
                                 <td style="font-size: 10px; color: #666;">
-                                    ${c.files ? c.files.slice(0, 3).map(fidx => (filePaths[fidx] || '').split('/').pop()).join(', ') : '-'}
-                                    ${c.files && c.files.length > 3 ? '...' : ''}
+                                    ${c.files ? c.files.slice(0, 5).map(fidx => {
+                                        const path = filePaths[fidx] || '';
+                                        const parts = path.split('/');
+                                        return `<span title="${path}">${parts.pop()}</span>`;
+                                    }).join(', ') : '-'}
+                                    ${c.files && c.files.length > 5 ? '...' : ''}
                                 </td>
                             </tr>
                         `).join('')}

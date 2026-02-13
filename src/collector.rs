@@ -66,10 +66,9 @@ fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
     let first_line = message.lines().next().unwrap_or("").to_lowercase();
     for branch in base_branches {
         let b = branch.to_lowercase();
-        // Common git merge messages
         if first_line.contains(&format!("merge branch '{}'", b)) ||
            first_line.contains(&format!("merge remote-tracking branch 'origin/{}'", b)) ||
-           first_line.contains(&format!("merge pull request #", )) && first_line.contains(&format!("from {}", b)) ||
+           (first_line.contains("merge pull request") && first_line.contains(&format!("from {}", b))) ||
            first_line.contains(&format!("merge branch '{}' into", b))
         {
             return true;
@@ -168,12 +167,12 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
 
         let mut lead_time_days = None;
         if is_merge && commit.parent_count() >= 2 {
-            // Calculate lead time: from first commit in the merged branch to this merge commit
             let mut revwalk = repo.revwalk()?;
-            revwalk.push(commit.parent_id(1)?)?; // The branch being merged
-            revwalk.hide(commit.parent_id(0)?)?; // Hide commits already in the target branch
+            revwalk.push(commit.parent_id(1)?)?;
+            revwalk.hide(commit.parent_id(0)?)?;
             
             let mut oldest_timestamp = commit.time().seconds();
+            let mut count = 0;
             for oid_res in revwalk {
                 if let Ok(oid) = oid_res {
                     if let Ok(c) = repo.find_commit(oid) {
@@ -183,11 +182,13 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
                         }
                     }
                 }
+                count += 1;
+                if count > 2000 { break; } // Prevent infinite or too long traversals
             }
             
             let diff_sec = commit.time().seconds() - oldest_timestamp;
             let days = (diff_sec / (24 * 3600)) as u32;
-            lead_time_days = Some(days.max(1)); // Min 1 day
+            lead_time_days = Some(days.max(1));
         }
 
         let (added, deleted, commit_files) = if commit.parent_count() == 0 {
