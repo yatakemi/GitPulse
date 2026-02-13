@@ -421,6 +421,20 @@ pub const HTML_TEMPLATE: &str = concat!(
                 </div>
                 <canvas id="productivityChart"></canvas>
             </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_lead_time_trend">Lead Time Trend (Time Series)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_lead_time_trend" data-tooltip="Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.">i</span>
+                </div>
+                <canvas id="leadTimeTrendChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_file_type_trend">File Type Activity Trend</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_file_type_trend" data-tooltip="Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.">i</span>
+                </div>
+                <canvas id="fileTypeTrendChart"></canvas>
+            </div>
             <div class="chart-box">
                 <div class="chart-title">
                     <span data-i18n="chart_share">User Share</span>

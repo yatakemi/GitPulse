@@ -16,6 +16,8 @@ pub struct DashboardData {
     pub daily_stats: Vec<DailyStat>,
     pub file_stats: Vec<FileStat>,
     pub file_type_stats: Vec<FileTypeStat>,
+    pub daily_file_type_stats: Vec<DailyFileTypeStat>,
+    pub daily_lead_time_stats: Vec<DailyLeadTimeStat>,
     pub merge_events: Vec<MergeEvent>,
     pub daily_dir_counts: Vec<DirCount>,
     pub weekly_stats: Vec<WeeklyStat>,
@@ -24,6 +26,20 @@ pub struct DashboardData {
     pub file_paths: Vec<String>,
     pub commits: Vec<CommitStats>,
     pub events: Vec<crate::config::EventConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DailyFileTypeStat {
+    pub date: String,
+    pub extension: String,
+    pub added: usize,
+    pub deleted: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DailyLeadTimeStat {
+    pub date: String,
+    pub avg_days: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

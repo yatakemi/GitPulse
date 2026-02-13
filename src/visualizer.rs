@@ -110,10 +110,8 @@ mod tests {
         alias.insert("alice@example.com".to_string(), "Alice".to_string());
         alias.insert("Bob_Work".to_string(), "Bob".to_string());
         
-        let config = crate::config::Config {
-            alias,
-            exclude: vec![],
-        };
+        let mut config = crate::config::Config::default();
+        config.alias = alias;
 
         // Alias by email
         assert_eq!(normalize_author("Alice P", "alice@example.com", &config), "Alice");
@@ -198,6 +196,8 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     let mut daily_dirs: HashMap<String, HashSet<String>> = HashMap::new();
     let mut weekly_map: HashMap<String, WeeklyStat> = HashMap::new();
     let mut ext_map: HashMap<String, crate::model::FileTypeStat> = HashMap::new();
+    let mut daily_ext_map: HashMap<(String, String), (usize, usize)> = HashMap::new();
+    let mut daily_lead_time_map: HashMap<String, Vec<u32>> = HashMap::new();
 
     // Grouping commits for merge time calculation
     let mut non_merge_commits = data.commits.clone();
@@ -271,29 +271,50 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
                 day_dir_set.insert(dir.to_string());
 
                 // Extract extension
-                let ext = path.split('.').last().unwrap_or("no-ext").to_lowercase();
-                if ext.len() < 8 && !path.ends_with('/') {
-                    commit_exts.insert(ext);
-                } else if !path.contains('.') {
-                    commit_exts.insert("no-ext".to_string());
-                }
+                let path_lower = path.to_lowercase();
+                let filename = path.split('/').last().unwrap_or("").to_lowercase();
+                
+                let ext = if path_lower.contains("/test/") || path_lower.contains("/tests/") || 
+                            filename.contains(".spec.") || filename.contains(".test.") ||
+                            filename.ends_with("_test.rs") || filename.ends_with("_spec.rb") ||
+                            filename.starts_with("test_")
+                {
+                    "test".to_string()
+                } else {
+                    let e = path.split('.').last().unwrap_or("no-ext").to_lowercase();
+                    if e.len() < 8 && !path.ends_with('/') {
+                        e
+                    } else if !path.contains('.') {
+                        "no-ext".to_string()
+                    } else {
+                        "others".to_string()
+                    }
+                };
+                commit_exts.insert(ext);
             }
         }
 
         // Aggregate by extension
         let num_exts = commit_exts.len().max(1);
         for ext in commit_exts {
+            let added_share = commit.added / num_exts;
+            let deleted_share = commit.deleted / num_exts;
+
             let stat = ext_map.entry(ext.clone()).or_insert(crate::model::FileTypeStat {
-                extension: ext,
+                extension: ext.clone(),
                 added: 0,
                 deleted: 0,
                 commits: 0,
                 churn: 0,
             });
-            stat.added += commit.added / num_exts;
-            stat.deleted += commit.deleted / num_exts;
+            stat.added += added_share;
+            stat.deleted += deleted_share;
             stat.commits += 1;
             stat.churn += churn / num_exts;
+
+            let daily_ext_stat = daily_ext_map.entry((date_str.clone(), ext)).or_insert((0, 0));
+            daily_ext_stat.0 += added_share;
+            daily_ext_stat.1 += deleted_share;
         }
 
         // Merge events
@@ -331,8 +352,9 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
                     branch: branch_name,
                     author: commit.author.clone(),
                     days,
-                    date: date_str,
+                    date: date_str.clone(),
                 });
+                daily_lead_time_map.entry(date_str).or_insert(Vec::new()).push(days);
             }
         }
     }
@@ -381,10 +403,23 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
         None
     };
 
+    let daily_file_type_stats = daily_ext_map.into_iter()
+        .map(|((date, extension), (added, deleted))| crate::model::DailyFileTypeStat { date, extension, added, deleted })
+        .collect();
+
+    let daily_lead_time_stats = daily_lead_time_map.into_iter()
+        .map(|(date, days)| {
+            let avg_days = days.iter().sum::<u32>() as f64 / days.len() as f64;
+            crate::model::DailyLeadTimeStat { date, avg_days }
+        })
+        .collect();
+
     crate::model::DashboardData {
         daily_stats: daily_map.into_values().collect(),
         file_stats: file_map.into_iter().map(|((f, a), c)| FileStat { file_idx: f, author: a, count: c }).collect(),
         file_type_stats: ext_map.into_values().collect(),
+        daily_file_type_stats,
+        daily_lead_time_stats,
         merge_events,
         daily_dir_counts,
         weekly_stats,

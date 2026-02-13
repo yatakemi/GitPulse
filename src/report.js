@@ -84,6 +84,10 @@
                 insight_ctxswitch_desc: "Average {value} directories touched per day.",
                 insight_longlived_title: "Long-lived Branches",
                 insight_longlived_desc: "{value} branch(es) lived longer than 7 days.",
+                chart_lead_time_trend: "Lead Time Trend (Time Series)",
+                chart_file_type_trend: "File Type Activity Trend",
+                tooltip_lead_time_trend: "Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.",
+                tooltip_file_type_trend: "Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.",
                 header_active_days: "Active Days",
                 header_total_changes: "Total Changes",
                 header_reviews: "Reviews (Assigned)",
@@ -159,6 +163,7 @@
                 metric_response_time: "Avg Response Time",
                 metric_review_depth: "Review Depth (Comments/PR)",
                 metric_iterations: "Avg Review Iterations",
+                metric_test_ratio: "Test Code Ratio (%)",
                 status_improved: "Improved",
                 status_declined: "Declined",
                 status_stable: "Stable",
@@ -251,6 +256,10 @@
                 insight_ctxswitch_desc: "1日平均{value}ディレクトリです。",
                 insight_longlived_title: "🔄 長命ブランチ",
                 insight_longlived_desc: "{value}個のブランチが7日以上存続しています。",
+                chart_lead_time_trend: "リードタイム推移 (時系列)",
+                chart_file_type_trend: "ファイル種別別アクティビティ推移",
+                tooltip_lead_time_trend: "日次の平均ブランチリードタイムの推移を表示します。数値が低いほど迅速にデリバリーされていることを示します。スパイクはブランチが停滞していた期間を意味します。",
+                tooltip_file_type_trend: "ファイル種別（特に 'test'）ごとの追加行数の時系列変化を表示します。特定の施策後にテスト活動が増えたかなどを確認するのに役立ちます。",
                 header_active_days: "稼働日数",
                 header_total_changes: "合計変更",
                 header_reviews: "レビュー割当回数",
@@ -303,6 +312,7 @@
                 metric_response_time: "平均反応時間",
                 metric_review_depth: "レビュー密度 (コメント数/PR)",
                 metric_iterations: "平均イテレーション",
+                metric_test_ratio: "テストコード比率 (%)",
                 status_improved: "改善",
                 status_declined: "低下",
                 status_stable: "安定",
@@ -405,6 +415,8 @@
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
+        const leadTimeTrendCtx = document.getElementById('leadTimeTrendChart').getContext('2d');
+        const fileTypeTrendCtx = document.getElementById('fileTypeTrendChart').getContext('2d');
         const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
         const reciprocityCtx = document.getElementById('reciprocityChart').getContext('2d');
         const scatterCtx = document.getElementById('scatterChart').getContext('2d');
@@ -413,7 +425,7 @@
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -536,6 +548,8 @@
             updateHealthTrendChart(filteredData, startDate, endDate);
             updateOwnershipChart(filteredData, startDate, endDate);
             updateLeadTimeChart(filteredData, startDate, endDate);
+            updateLeadTimeTrendChart(startDate, endDate);
+            updateFileTypeTrendChart(startDate, endDate);
             updateReviewActivityChart(startDate, endDate);
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
@@ -1276,6 +1290,104 @@
             }
         }
 
+        function updateLeadTimeTrendChart(startDate, endDate) {
+            const stats = dashboardData.daily_lead_time_stats || [];
+            const filtered = stats.filter(s => s.date >= startDate && s.date <= endDate)
+                                 .sort((a, b) => a.date.localeCompare(b.date));
+            
+            if (leadTimeTrendChart) leadTimeTrendChart.destroy();
+            
+            const movingAvg = calculateMovingAverage(filtered.map(s => s.avg_days), 7);
+            
+            leadTimeTrendChart = new Chart(leadTimeTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: filtered.map(s => s.date),
+                    datasets: [
+                        {
+                            label: 'Daily Avg Lead Time',
+                            data: filtered.map(s => s.avg_days),
+                            borderColor: '#27ae6033',
+                            backgroundColor: '#27ae6011',
+                            borderWidth: 1,
+                            pointRadius: 2,
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: '7-Day Trend',
+                            data: movingAvg,
+                            borderColor: '#27ae60',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Days' } }
+                    }
+                }
+            });
+        }
+
+        function updateFileTypeTrendChart(startDate, endDate) {
+            const stats = dashboardData.daily_file_type_stats || [];
+            const dateMap = new Map();
+            const extensions = new Set();
+            
+            stats.filter(s => s.date >= startDate && s.date <= endDate).forEach(s => {
+                if (!dateMap.has(s.date)) dateMap.set(s.date, {});
+                dateMap.get(s.date)[s.extension] = (dateMap.get(s.date)[s.extension] || 0) + s.added;
+                extensions.add(s.extension);
+            });
+            
+            const sortedDates = Array.from(dateMap.keys()).sort();
+            const sortedExts = Array.from(extensions).sort((a, b) => {
+                if (a === 'test') return -1;
+                if (b === 'test') return 1;
+                return a.localeCompare(b);
+            });
+            
+            const datasets = sortedExts.map(ext => {
+                const dataPoints = sortedDates.map(date => dateMap.get(date)[ext] || 0);
+                const color = ext === 'test' ? '#e67e22' : stringToColor(ext);
+                return {
+                    label: ext,
+                    data: calculateMovingAverage(dataPoints, 7),
+                    borderColor: color,
+                    backgroundColor: color + '22',
+                    borderWidth: ext === 'test' ? 3 : 1,
+                    pointRadius: 0,
+                    fill: ext === 'test',
+                    tension: 0.4
+                };
+            });
+            
+            if (fileTypeTrendChart) fileTypeTrendChart.destroy();
+            fileTypeTrendChart = new Chart(fileTypeTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Added Lines (7-day Avg)' } }
+                    },
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+        }
+
         function updateContextSwitchChart(filteredData, startDate, endDate) {
             const relevantCounts = dashboardData.daily_dir_counts.filter(dc => dc.date >= startDate && dc.date <= endDate).sort((a, b) => a.date.localeCompare(b.date));
             if (ctxChart) ctxChart.destroy();
@@ -1664,6 +1776,23 @@
 
                 const stdDev = Math.sqrt(leadTimeValues.reduce((a, b) => a + Math.pow(b - lt.avg, 2), 0) / (leadTimeValues.length || 1));
 
+                // Calculate Test Ratio from daily_file_type_stats
+                const fileStats = dashboardData.daily_file_type_stats || [];
+                let totalAdded = 0;
+                let testAdded = 0;
+                
+                fileStats.forEach(s => {
+                    const d = new Date(s.date);
+                    const inPeriod = isBefore ? (d >= ninetyDaysBefore && d < eventDate) : (d >= eventDate);
+                    if (inPeriod) {
+                        totalAdded += s.added;
+                        if (s.extension === 'test') {
+                            testAdded += s.added;
+                        }
+                    }
+                });
+                const testRatio = totalAdded > 0 ? (testAdded / totalAdded) * 100 : 0;
+
                 return { 
                     throughput, 
                     median: lt.median, 
@@ -1675,7 +1804,8 @@
                     responseTime: res.avg, 
                     responseMedian: res.median,
                     reviewDepth: depth.avg, 
-                    iterations: iters.avg 
+                    iterations: iters.avg,
+                    testRatio
                 };
             }
 
@@ -1695,7 +1825,8 @@
                 { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true },
                 { id: 'metric_response_time', b: before.responseTime, a: after.responseTime, unit: 'h', lowerIsBetter: true },
                 { id: 'metric_review_depth', b: before.reviewDepth, a: after.reviewDepth, unit: '', lowerIsBetter: false },
-                { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true }
+                { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true },
+                { id: 'metric_test_ratio', b: before.testRatio, a: after.testRatio, unit: '%', lowerIsBetter: false }
             ];
 
             metrics.forEach(m => {
