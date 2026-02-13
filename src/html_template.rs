@@ -425,7 +425,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         <div class="charts-grid">
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    <span data-i18n="chart_timeline">Timeline</span> 
+                    <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
                     <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
                     <div class="chart-controls">
                         <select id="chartTypeSelect" onchange="updateDashboard()">

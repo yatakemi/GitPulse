@@ -609,6 +609,7 @@
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
             updatePredictiveDashboard(filteredData);
+            updateAllChartsWithEvents();
         }
 
         function updateIsolatedFiles(filteredData) {
@@ -1046,6 +1047,10 @@
             const totalMerges = currentData.reduce((acc, d) => acc + d.merges, 0);
             const churnRate = totalChanges > 0 ? ((totalChurn / totalChanges) * 100).toFixed(1) : '0.0';
             
+            const metricSelect = document.getElementById('metricSelect');
+            const metricLabel = metricSelect.options[metricSelect.selectedIndex].text;
+            document.getElementById('summaryTitle').textContent = metricLabel;
+            
             document.getElementById('summaryValue').textContent = (currentTotal || 0).toLocaleString();
             document.getElementById('mergeCommitsValue').textContent = (totalMerges || 0).toLocaleString();
             document.getElementById('churnRateValue').textContent = `${churnRate}%`;
@@ -1059,6 +1064,11 @@
             const end = new Date(endDate);
             const displayDates = [];
             
+            // Update Title
+            const metricSelect = document.getElementById('metricSelect');
+            const metricLabel = metricSelect.options[metricSelect.selectedIndex].text;
+            document.getElementById('timelineTitleText').textContent = t('chart_timeline') + ': ' + metricLabel;
+
             // Safety limit to 2 years of daily data
             let safety = 0;
             while (curr <= end && safety < 730) {
@@ -1073,15 +1083,19 @@
                 const daily = dateMap.get(d.dateStr);
                 daily[d.author] = (daily[d.author] || 0) + (d[metric] || 0);
             });
-            const datasets = allUsers.map(user => ({
-                label: user,
-                data: displayDates.map(date => dateMap.get(date)[user] || 0),
-                fill: chartType === 'bar',
-                borderColor: stringToColor(user),
-                backgroundColor: stringToColor(user),
-                tension: 0.1,
-                borderWidth: chartType === 'bar' ? 0 : 2
-            }));
+            const datasets = allUsers.map(user => {
+                const rawData = displayDates.map(date => dateMap.get(date)[user] || 0);
+                const plotData = showTrend ? calculateMovingAverage(rawData, 7) : rawData;
+                return {
+                    label: user,
+                    data: plotData,
+                    fill: chartType === 'bar',
+                    borderColor: stringToColor(user),
+                    backgroundColor: stringToColor(user),
+                    tension: 0.1,
+                    borderWidth: chartType === 'bar' ? 0 : 2
+                };
+            });
             if (mainChart) mainChart.destroy();
             mainChart = new Chart(ctx, {
                 type: chartType,
@@ -2260,13 +2274,19 @@
 
             document.getElementById('impactDescription').innerHTML = `Assessment of initiative: <strong>${event.name}</strong> (Started ${event.date})`;
             
-            // Update Timeline with vertical lines
-            updateTimelineWithEvents();
+            // Update all charts with vertical lines
+            updateAllChartsWithEvents();
         }
 
-        function updateTimelineWithEvents() {
-            if (!mainChart || !dashboardData.events) return;
+        function updateAllChartsWithEvents() {
+            if (!dashboardData.events) return;
             
+            const charts = [
+                mainChart, leadTimeTrendChart, fileTypeTrendChart, 
+                velocitySizeChart, ctxSwitchTrendChart, ctxChart, 
+                reviewActivityChart, healthChart
+            ];
+
             const annotations = {};
             dashboardData.events.forEach((event, idx) => {
                 annotations['line' + idx] = {
@@ -2287,8 +2307,12 @@
                 };
             });
 
-            mainChart.options.plugins.annotation = { annotations };
-            mainChart.update();
+            charts.forEach(chart => {
+                if (chart) {
+                    chart.options.plugins.annotation = { annotations };
+                    chart.update();
+                }
+            });
         }
 
         function updateUserList(filteredData) {
