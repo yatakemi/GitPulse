@@ -1560,14 +1560,17 @@
                 }
             });
 
-            // Lead Time Buckets (Days)
+            // Lead Time Buckets (Days, but granular for short durations)
+            // leadTimes are in days, so we multiply by 24 to compare with hour-based thresholds if needed,
+            // or just use fractional days.
             const leadBuckets = [
-                { label: '<1d', min: 0, max: 1 },
+                { label: '<4h', min: 0, max: 4/24 },
+                { label: '4-12h', min: 4/24, max: 12/24 },
+                { label: '12-24h', min: 12/24, max: 1 },
                 { label: '1-3d', min: 1, max: 3 },
                 { label: '3-7d', min: 3, max: 7 },
                 { label: '7-14d', min: 7, max: 14 },
-                { label: '14-30d', min: 14, max: 30 },
-                { label: '>30d', min: 30, max: Infinity }
+                { label: '>14d', min: 14, max: Infinity }
             ];
 
             const leadBins = createCustomHistogram(leadTimes, leadBuckets);
