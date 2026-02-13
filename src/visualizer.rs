@@ -229,6 +229,8 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
             churn: 0,
             hours: Vec::new(),
             commit_sizes: Vec::new(),
+            unrelated_switches: 0,
+            commit_intervals: Vec::new(),
         });
         stat.added += commit.added;
         stat.deleted += commit.deleted;
@@ -402,6 +404,56 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     } else {
         None
     };
+
+    // --- Detailed Context Switch Analysis ---
+    // Group commits by (date, author) to analyze chronological flow
+    let mut user_day_commits: HashMap<(String, String), Vec<crate::model::CommitStats>> = HashMap::new();
+    for commit in &data.commits {
+        let date_str = commit.date.date_naive().format("%Y-%m-%d").to_string();
+        user_day_commits.entry((date_str, commit.author.clone())).or_insert(Vec::new()).push(commit.clone());
+    }
+
+    for ((date_str, author), mut commits) in user_day_commits {
+        if commits.len() < 2 { continue; }
+        commits.sort_by(|a, b| a.date.cmp(&b.date));
+
+        let mut last_dirs: HashSet<String> = HashSet::new();
+        let mut last_time = commits[0].date;
+
+        for (i, commit) in commits.iter().enumerate() {
+            let current_dirs: HashSet<String> = commit.files.iter()
+                .filter_map(|&idx| data.file_paths.get(idx))
+                .map(|p| p.split('/').next().unwrap_or("(root)").to_string())
+                .collect();
+
+            if i > 0 {
+                // 1. Time Fragmentation
+                let diff_min = commit.date.signed_duration_since(last_time).num_minutes() as u32;
+                if let Some(stat) = daily_map.get_mut(&(date_str.clone(), author.clone())) {
+                    stat.commit_intervals.push(diff_min);
+                }
+
+                // 2. Switch Quality
+                // A switch is unrelated if there's no intersection between current dirs and last dirs,
+                // AND it's not a src <-> test switch.
+                if !current_dirs.is_empty() && !last_dirs.is_empty() {
+                    let has_intersection = current_dirs.iter().any(|d| last_dirs.contains(d));
+                    if !has_intersection {
+                        let is_src_test_switch = (current_dirs.iter().any(|d| d == "src") && last_dirs.iter().any(|d| d == "test" || d == "tests" || d == "spec")) ||
+                                               (last_dirs.iter().any(|d| d == "src") && current_dirs.iter().any(|d| d == "test" || d == "tests" || d == "spec"));
+                        
+                        if !is_src_test_switch {
+                            if let Some(stat) = daily_map.get_mut(&(date_str.clone(), author.clone())) {
+                                stat.unrelated_switches += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            last_dirs = current_dirs;
+            last_time = commit.date;
+        }
+    }
 
     let daily_file_type_stats = daily_ext_map.into_iter()
         .map(|((date, extension), (added, deleted))| crate::model::DailyFileTypeStat { date, extension, added, deleted })

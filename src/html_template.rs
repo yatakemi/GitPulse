@@ -573,6 +573,13 @@ pub const HTML_TEMPLATE: &str = concat!(
                 </div>
                 <canvas id="ctxSwitchChart"></canvas>
             </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_fragmentation">Time Fragmentation (Inter-commit Intervals)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_fragmentation" data-tooltip="連続するコミット間の経過時間を表示します。短い間隔はマルチタスクや頻繁な割り込みを示唆し、長い間隔は深い集中状態（ディープワーク）が確保できていることを示します。">i</span>
+                </div>
+                <canvas id="fragmentationChart"></canvas>
+            </div>
         </div>
 
         <!-- User List Section -->

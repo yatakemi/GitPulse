@@ -78,8 +78,12 @@
                 label_branch: "Branch",
                 label_leadtime_days: "Lead Time (Days)",
                 chart_ctxswitch: "Context Switching",
-                tooltip_ctxswitch: "Distinct directories touched per day.",
+                tooltip_ctxswitch: "Distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work productivity.",
                 label_avg_dirs: "Avg Directories / Day",
+                label_unrelated_switches: "Unrelated Context Switches",
+                chart_fragmentation: "Time Fragmentation (Inter-commit Intervals)",
+                tooltip_fragmentation: "Shows the time between consecutive commits. Short intervals suggest multi-tasking or rapid context switching. Long intervals indicate periods of deep focus (Deep Work).",
+                label_minutes: "minutes",
                 insight_ctxswitch_title: "Frequent Context Switching",
                 insight_ctxswitch_desc: "Average {value} directories touched per day.",
                 insight_longlived_title: "Long-lived Branches",
@@ -258,6 +262,10 @@
                 chart_ctxswitch: "コンテキストスイッチ",
                 tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。",
                 label_avg_dirs: "平均ディレクトリ / 日",
+                label_unrelated_switches: "無関係なコンテキストスイッチ",
+                chart_fragmentation: "作業の断片化 (コミット間隔)",
+                tooltip_fragmentation: "連続するコミット間の経過時間を表示します。短い間隔はマルチタスクや頻繁な割り込みを示唆し、長い間隔は深い集中状態（ディープワーク）が確保できていることを示します。",
+                label_minutes: "分",
                 insight_ctxswitch_title: "🔀 頻繁なコンテキストスイッチ",
                 insight_ctxswitch_desc: "1日平均{value}ディレクトリです。",
                 insight_longlived_title: "🔄 長命ブランチ",
@@ -438,9 +446,10 @@
         const resDistCtx = document.getElementById('resDistChart').getContext('2d');
         const leadDistCtx = document.getElementById('leadDistChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
+        const fragmentationCtx = document.getElementById('fragmentationChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, velocitySizeChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, velocitySizeChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, fragmentationChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -570,6 +579,7 @@
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
+            updateFragmentationChart(filteredData, startDate, endDate);
             updateFileTypeChart();
             updateIsolatedFiles(filteredData);
             generateInsights(filteredData, startDate, endDate);
@@ -1495,12 +1505,113 @@
         }
 
         function updateContextSwitchChart(filteredData, startDate, endDate) {
-            const relevantCounts = dashboardData.daily_dir_counts.filter(dc => dc.date >= startDate && dc.date <= endDate).sort((a, b) => a.date.localeCompare(b.date));
+            const dateMap = new Map();
+            let curr = new Date(startDate);
+            const end = new Date(endDate);
+            const displayDates = [];
+            while (curr <= end) {
+                const dStr = curr.toISOString().split('T')[0];
+                displayDates.push(dStr);
+                dateMap.set(dStr, { dirs: 0, unrelated: 0 });
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            // dashboardData.daily_dir_counts is global, but we want to filter by selected users
+            // Let's calculate from filteredData instead
+            filteredData.forEach(d => {
+                if (dateMap.has(d.dateStr)) {
+                    const entry = dateMap.get(d.dateStr);
+                    // Approximation for daily_dir_counts from filteredData
+                    entry.dirs = Math.max(entry.dirs, d.hours.length > 0 ? 1 : 0); // Temporary placeholder
+                    entry.unrelated += (d.unrelated_switches || 0);
+                }
+            });
+
+            // Recalculate daily directory diversity more accurately from filteredData
+            const dailyUserDirs = {}; // date -> Set of dirs
+            filteredData.forEach(d => {
+                // Since DailyStat doesn't store the actual dirs, we use unrelated_switches as the primary signal
+            });
+
+            // Use the global dir count as baseline, and unrelated switches from filtered data
+            const globalDirCounts = dashboardData.daily_dir_counts.reduce((acc, dc) => {
+                acc[dc.date] = dc.count;
+                return acc;
+            }, {});
+
             if (ctxChart) ctxChart.destroy();
             ctxChart = new Chart(ctxSwitchCtx, {
                 type: 'line',
-                data: { labels: relevantCounts.map(dc => dc.date), datasets: [{ data: relevantCounts.map(dc => dc.count), borderColor: '#9b59b6', fill: true }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                data: {
+                    labels: displayDates,
+                    datasets: [
+                        {
+                            label: t('label_avg_dirs'),
+                            data: displayDates.map(d => globalDirCounts[d] || 0),
+                            borderColor: '#9b59b6',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: t('label_unrelated_switches'),
+                            data: displayDates.map(d => dateMap.get(d).unrelated),
+                            borderColor: '#e74c3c',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+                    }
+                }
+            });
+        }
+
+        function updateFragmentationChart(filteredData, startDate, endDate) {
+            const intervals = filteredData.flatMap(d => d.commit_intervals || []);
+            
+            const buckets = [
+                { label: '<15m', min: 0, max: 15 },
+                { label: '15-30m', min: 15, max: 30 },
+                { label: '30-60m', min: 30, max: 60 },
+                { label: '1-2h', min: 60, max: 120 },
+                { label: '2-4h', min: 120, max: 240 },
+                { label: '>4h', min: 240, max: Infinity }
+            ];
+
+            const bins = buckets.map(b => ({ label: b.label, count: 0, min: b.min, max: b.max }));
+            intervals.forEach(v => {
+                const bin = bins.find(b => v >= b.min && v < b.max);
+                if (bin) bin.count++;
+                else if (v >= buckets[buckets.length-1].max) bins[bins.length-1].count++;
+            });
+
+            if (fragmentationChart) fragmentationChart.destroy();
+            fragmentationChart = new Chart(fragmentationCtx, {
+                type: 'bar',
+                data: {
+                    labels: bins.map(b => b.label),
+                    datasets: [{
+                        label: t('label_commit_count'),
+                        data: bins.map(b => b.count),
+                        backgroundColor: '#1abc9c99'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: t('label_commit_count') } },
+                        x: { title: { display: true, text: t('label_minutes') } }
+                    }
+                }
             });
         }
 

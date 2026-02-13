@@ -68,6 +68,8 @@ pub struct DailyStat {
     pub merges: usize,
     pub hours: Vec<u32>,
     pub commit_sizes: Vec<usize>, // total_changes of each commit
+    pub unrelated_switches: usize,
+    pub commit_intervals: Vec<u32>, // minutes between consecutive commits
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
