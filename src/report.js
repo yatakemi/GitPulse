@@ -527,10 +527,8 @@
             const params = new URLSearchParams();
             params.set('lang', currentLang);
             params.set('metric', document.getElementById('metricSelect').value);
-            params.set('chart', document.getElementById('chartTypeSelect').value);
             params.set('start', document.getElementById('startDate').value);
             params.set('end', document.getElementById('endDate').value);
-            params.set('trend', document.getElementById('showTrend').checked);
             params.set('users', Array.from(selectedUsers).join(','));
             const newUrl = window.location.pathname + '?' + params.toString();
             window.history.replaceState({}, '', newUrl);
@@ -543,10 +541,8 @@
                 document.getElementById('langSelect').value = currentLang;
             }
             if (params.has('metric')) document.getElementById('metricSelect').value = params.get('metric');
-            if (params.has('chart')) document.getElementById('chartTypeSelect').value = params.get('chart');
             if (params.has('start')) document.getElementById('startDate').value = params.get('start');
             if (params.has('end')) document.getElementById('endDate').value = params.get('end');
-            if (params.has('trend')) document.getElementById('showTrend').checked = params.get('trend') === 'true';
             if (params.has('users')) {
                 const users = params.get('users').split(',').filter(u => u.length > 0);
                 selectedUsers = new Set(users);
