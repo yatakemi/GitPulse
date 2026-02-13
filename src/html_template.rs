@@ -1607,15 +1607,17 @@ pub const HTML_TEMPLATE: &str = r#"
             impactSection.style.display = 'block';
             impactTableBody.innerHTML = '';
             
-            // For simplicity, we assess the most recent event
+            // Assess the most recent event
             const event = dashboardData.events[dashboardData.events.length - 1];
             const eventDate = new Date(event.date);
-            const fourWeeksBefore = new Date(eventDate);
-            fourWeeksBefore.setDate(eventDate.getDate() - 28);
+            
+            // Look back up to 90 days for "Before" data to ensure we have enough samples
+            const ninetyDaysBefore = new Date(eventDate);
+            ninetyDaysBefore.setDate(eventDate.getDate() - 90);
             
             const beforePRs = dashboardData.github_prs.filter(pr => {
                 const d = new Date(pr.created_at);
-                return d >= fourWeeksBefore && d < eventDate;
+                return d >= ninetyDaysBefore && d < eventDate;
             });
             
             const afterPRs = dashboardData.github_prs.filter(pr => {
@@ -1624,7 +1626,12 @@ pub const HTML_TEMPLATE: &str = r#"
             });
 
             if (beforePRs.length === 0 || afterPRs.length === 0) {
-                document.getElementById('impactDescription').textContent = "Not enough data before or after the initiative to perform assessment.";
+                let reason = "";
+                if (beforePRs.length === 0 && afterPRs.length === 0) reason = "No PRs found before or after the event.";
+                else if (beforePRs.length === 0) reason = `No PRs found in the 90 days prior to ${event.date}.`;
+                else reason = `No PRs found on or after ${event.date}.`;
+                
+                document.getElementById('impactDescription').innerHTML = `<span style="color: #e74c3c;">⚠️ <strong>Assessment Unavailable:</strong> ${reason}</span><br><small>Make sure you have collected GitHub data with the --github flag and that PRs exist around the event date.</small>`;
                 return;
             }
 
