@@ -2006,6 +2006,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 count: values.length
             };
         }
+
+        function getWeeklyStats(filteredData) {
+            const weeklyMap = {};
             filteredData.forEach(d => {
                 const date = new Date(d.dateStr);
                 const day = date.getDay();
