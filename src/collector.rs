@@ -108,18 +108,14 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let cache_dir = output_path.parent().unwrap_or_else(|| Path::new("."));
         let client = crate::github::GitHubClient::new(repo_path, cache_dir)?;
         
-        let mut loaded = false;
-        if !no_cache {
-            if let Some(cached_prs) = client.load_cache() {
-                github_prs = cached_prs;
-                loaded = true;
-            }
-        }
+        let existing_prs = if !no_cache {
+            client.load_cache().unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         
-        if !loaded {
-            github_prs = client.fetch_reviews()?;
-            client.save_cache(&github_prs)?;
-        }
+        github_prs = client.fetch_reviews(existing_prs)?;
+        client.save_cache(&github_prs)?;
     }
 
     // First pass: Count total commits for progress bar
