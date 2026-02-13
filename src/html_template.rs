@@ -508,6 +508,14 @@ pub const HTML_TEMPLATE: &str = r#"
                 </div>
                 <canvas id="scatterChart"></canvas>
             </div>
+            <!-- Distribution Analysis -->
+            <div class="chart-box full-width" id="distBox" style="display: none;">
+                <div class="chart-title">
+                    <span data-i18n="chart_distribution">Metric Distribution</span>
+                    <span class="info-icon" data-tooltip="Shows the frequency of different Lead Time and Response Time values. Helps identify typical vs outlier performance.">i</span>
+                </div>
+                <canvas id="distChart"></canvas>
+            </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
                     <span data-i18n="chart_ctxswitch">Context Switching (Daily Directory Diversity)</span>
@@ -975,10 +983,11 @@ pub const HTML_TEMPLATE: &str = r#"
         const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
         const reciprocityCtx = document.getElementById('reciprocityChart').getContext('2d');
         const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+        const distCtx = document.getElementById('distChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, distChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -1273,11 +1282,11 @@ pub const HTML_TEMPLATE: &str = r#"
             if (filteredPRs.length === 0) return;
 
             // 1. Stats Calculation
-            let reworkPrs = 0;
-            let totalComments = 0;
-            let totalResponseTimeMs = 0;
-            let responseCount = 0;
-            let totalIterations = 0;
+            const reworkPRs = [];
+            const allComments = [];
+            const responseTimes = [];
+            const leadTimes = [];
+            const iterationCounts = [];
             
             const matrix = {}; // {author: {reviewer: count}}
             const scatterData = [];
@@ -1287,24 +1296,29 @@ pub const HTML_TEMPLATE: &str = r#"
                 
                 // Rework Rate
                 const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED');
-                if (hasRequestChanges) reworkPrs++;
+                if (hasRequestChanges) reworkPRs.push(pr);
 
                 // Review Depth
-                totalComments += pr.total_comments || 0;
+                allComments.push(pr.total_comments || 0);
 
                 // Response Time
                 if (pr.reviews && pr.reviews.length > 0) {
                     const firstResponse = [...pr.reviews].sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))[0];
-                    const diff = new Date(firstResponse.submitted_at) - new Date(pr.created_at);
+                    const diff = (new Date(firstResponse.submitted_at) - new Date(pr.created_at)) / (1000 * 60 * 60);
                     if (diff > 0) {
-                        totalResponseTimeMs += diff;
-                        responseCount++;
+                        responseTimes.push(diff);
                     }
                 }
 
-                // Iterations (Approximated by number of review days or cycles)
+                // Iterations
                 const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
-                totalIterations += Math.max(1, distinctReviewCycles);
+                iterationCounts.push(Math.max(1, distinctReviewCycles));
+
+                // Lead Time
+                if (pr.merged_at) {
+                    const lt = (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24);
+                    if (lt > 0) leadTimes.push(lt);
+                }
 
                 // Matrix Data
                 if (!matrix[author]) matrix[author] = {};
@@ -1317,16 +1331,19 @@ pub const HTML_TEMPLATE: &str = r#"
                     });
                 }
 
-                // Scatter Data (Size vs Lead Time)
+                // Scatter Data
                 if (pr.merged_at) {
-                    const leadTimeDays = (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24);
+                    const lt = (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24);
                     const size = (pr.additions || 0) + (pr.deletions || 0);
-                    if (leadTimeDays > 0) {
-                        // Use Math.max(1, size) to avoid log(0) errors on logarithmic scale
-                        scatterData.push({ x: Math.max(1, size), y: leadTimeDays, label: pr.title });
+                    if (lt > 0) {
+                        scatterData.push({ x: Math.max(1, size), y: lt, label: pr.title });
                     }
                 }
             });
+
+            const resStats = getDetailedStats(responseTimes);
+            const depthStats = getDetailedStats(allComments);
+            const iterStats = getDetailedStats(iterationCounts);
 
             // Update Summary Cards
             const reworkRateEl = document.getElementById('reworkRateValue');
@@ -1334,12 +1351,24 @@ pub const HTML_TEMPLATE: &str = r#"
             const avgResponseEl = document.getElementById('avgResponseTimeValue');
             const avgIterEl = document.getElementById('avgIterationsValue');
 
-            if (reworkRateEl) reworkRateEl.textContent = ((reworkPrs / filteredPRs.length) * 100).toFixed(1) + '%';
-            if (reviewDepthEl) reviewDepthEl.textContent = (totalComments / filteredPRs.length).toFixed(1);
-            
-            const avgResH = responseCount > 0 ? (totalResponseTimeMs / responseCount / (1000 * 60 * 60)).toFixed(1) : '-';
-            if (avgResponseEl) avgResponseEl.textContent = avgResH + 'h';
-            if (avgIterEl) avgIterEl.textContent = (totalIterations / filteredPRs.length).toFixed(1);
+            if (reworkRateEl) {
+                reworkRateEl.textContent = ((reworkPRs.length / filteredPRs.length) * 100).toFixed(1) + '%';
+            }
+            if (reviewDepthEl) {
+                reviewDepthEl.textContent = depthStats.avg.toFixed(1);
+                reviewDepthEl.title = `Median: ${depthStats.median.toFixed(1)}, Min: ${depthStats.min}, Max: ${depthStats.max}`;
+            }
+            if (avgResponseEl) {
+                avgResponseEl.textContent = resStats.avg.toFixed(1) + 'h';
+                avgResponseEl.title = `Median: ${resStats.median.toFixed(1)}h, Min: ${resStats.min.toFixed(1)}h, Max: ${resStats.max.toFixed(1)}h`;
+            }
+            if (avgIterEl) {
+                avgIterEl.textContent = iterStats.avg.toFixed(1);
+                avgIterEl.title = `Median: ${iterStats.median}, Min: ${iterStats.min}, Max: ${iterStats.max}`;
+            }
+
+            // Update Distribution Chart
+            updateDistributionChart(responseTimes, leadTimes);
 
             // 2. Render Reciprocity Matrix
             const currentSelected = Array.from(selectedUsers).sort();
@@ -1854,8 +1883,74 @@ pub const HTML_TEMPLATE: &str = r#"
             updateForecastChart(weeklyStats, currentVelocity, stdev);
         }
 
-        function getWeeklyStats(filteredData) {
-            const weeklyMap = {};
+        function updateDistributionChart(resTimes, leadTimes) {
+            const distBox = document.getElementById('distBox');
+            if (resTimes.length === 0 && leadTimes.length === 0) {
+                if (distBox) distBox.style.display = 'none';
+                return;
+            }
+            if (distBox) distBox.style.display = 'block';
+
+            function createHistogram(data, bucketSize) {
+                const bins = {};
+                data.forEach(v => {
+                    const bin = Math.floor(v / bucketSize) * bucketSize;
+                    bins[bin] = (bins[bin] || 0) + 1;
+                });
+                return bins;
+            }
+
+            const resBins = createHistogram(resTimes, 4); // 4-hour buckets
+            const leadBins = createHistogram(leadTimes, 1); // 1-day buckets
+
+            const labels = [...new Set([...Object.keys(resBins), ...Object.keys(leadBins)])].sort((a,b) => a-b);
+
+            if (distChart) distChart.destroy();
+            distChart = new Chart(distCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Response Time (Frequency)',
+                            data: labels.map(l => resBins[l] || 0),
+                            backgroundColor: 'rgba(230, 126, 34, 0.6)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Lead Time (Frequency)',
+                            data: labels.map(l => leadBins[l] || 0),
+                            backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Value (Hours for Response, Days for Lead)' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'Number of PRs' } }
+                    }
+                }
+            });
+        }
+
+        function getDetailedStats(values) {
+            if (!values || values.length === 0) return { avg: 0, median: 0, min: 0, max: 0, p90: 0, count: 0 };
+            const sorted = [...values].sort((a, b) => a - b);
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            const median = sorted[Math.floor(sorted.length * 0.5)];
+            const p90 = sorted[Math.floor(sorted.length * 0.9)];
+            return {
+                avg,
+                median,
+                p90,
+                min: sorted[0],
+                max: sorted[sorted.length - 1],
+                count: values.length
+            };
+        }
             filteredData.forEach(d => {
                 const date = new Date(d.dateStr);
                 const day = date.getDay();
@@ -2013,34 +2108,44 @@ pub const HTML_TEMPLATE: &str = r#"
             function getStats(prs, periodWeeks, isBefore) {
                 // For throughput/lead-time, we care about when things were MERGED
                 const mergedPRs = prs.filter(pr => pr.merged_at && (isBefore ? new Date(pr.merged_at) < eventDate : true));
-                const leadTimes = mergedPRs.map(pr => (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
-                leadTimes.sort((a, b) => a - b);
-                
-                const median = leadTimes.length > 0 ? leadTimes[Math.floor(leadTimes.length * 0.5)] : 0;
-                const p90 = leadTimes.length > 0 ? leadTimes[Math.floor(leadTimes.length * 0.9)] : 0;
-                
-                const avg = leadTimes.reduce((a, b) => a + b, 0) / (leadTimes.length || 1);
-                const stdDev = Math.sqrt(leadTimes.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (leadTimes.length || 1));
+                const leadTimeValues = mergedPRs.map(pr => (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+                const lt = getDetailedStats(leadTimeValues);
                 
                 const throughput = mergedPRs.length / (periodWeeks || 1);
 
                 const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED')).length;
                 const reworkRate = (reworkCount / (prs.length || 1)) * 100;
 
-                const responseTimes = prs.filter(pr => pr.reviews && pr.reviews.length > 0).map(pr => {
+                const resTimeValues = prs.filter(pr => pr.reviews && pr.reviews.length > 0).map(pr => {
                     const first = [...pr.reviews].sort((a,b) => a.submitted_at.localeCompare(b.submitted_at))[0];
                     return (new Date(first.submitted_at) - new Date(pr.created_at)) / (1000 * 60 * 60);
                 });
-                const responseTime = responseTimes.length > 0 ? responseTimes.reduce((a,b) => a+b, 0) / responseTimes.length : 0;
+                const res = getDetailedStats(resTimeValues);
 
-                const reviewDepth = prs.reduce((acc, pr) => acc + (pr.total_comments || 0), 0) / (prs.length || 1);
+                const depthValues = prs.map(pr => pr.total_comments || 0);
+                const depth = getDetailedStats(depthValues);
                 
-                const iterations = prs.reduce((acc, pr) => {
+                const iterationValues = prs.map(pr => {
                     const cycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
-                    return acc + Math.max(1, cycles);
-                }, 0) / (prs.length || 1);
+                    return Math.max(1, cycles);
+                });
+                const iters = getDetailedStats(iterationValues);
 
-                return { throughput, median, p90, stdDev, reworkRate, responseTime, reviewDepth, iterations };
+                const stdDev = Math.sqrt(leadTimeValues.reduce((a, b) => a + Math.pow(b - lt.avg, 2), 0) / (leadTimeValues.length || 1));
+
+                return { 
+                    throughput, 
+                    median: lt.median, 
+                    p90: lt.p90 || 0, // Fallback
+                    max: lt.max,
+                    avg: lt.avg,
+                    stdDev, 
+                    reworkRate, 
+                    responseTime: res.avg, 
+                    responseMedian: res.median,
+                    reviewDepth: depth.avg, 
+                    iterations: iters.avg 
+                };
             }
 
             const now = allDates.length > 0 ? new Date(allDates[allDates.length - 1]) : new Date();
