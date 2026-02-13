@@ -469,6 +469,26 @@ pub const HTML_TEMPLATE: &str = r#"
                 </div>
                 <canvas id="ownershipChart"></canvas>
             </div>
+            <div class="chart-box full-width" style="height: auto; min-height: 200px;">
+                <div class="chart-title">
+                    <span data-i18n="title_isolated_files">Isolated Files (Bus Factor Risk)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_isolated" data-tooltip="Files that have been modified by only one person.">i</span>
+                </div>
+                <div style="margin-top: 45px; overflow-x: auto;">
+                    <table class="user-table" style="font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th data-i18n="header_file_path">File Path</th>
+                                <th data-i18n="header_sole_contributor">Sole Contributor</th>
+                                <th data-i18n="header_mod_count">Modifications</th>
+                            </tr>
+                        </thead>
+                        <tbody id="isolatedFilesTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
                     <span data-i18n="chart_leadtime">Branch Lead Time</span>
@@ -686,6 +706,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_review_depth: "Review Depth",
                 sum_response_time: "Avg Response Time",
                 sum_iterations: "Avg Iterations",
+                title_isolated_files: "Isolated Files (Bus Factor Risk)",
+                tooltip_isolated: "Files that have been modified by only one person in the repository. These represent potential knowledge silos.",
+                header_file_path: "File Path",
+                header_sole_contributor: "Sole Contributor",
+                header_mod_count: "Modifications",
                 title_commit_details: "Commit Details",
                 label_commits_by: "Commits by",
                 header_date: "Date",
@@ -846,6 +871,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_review_depth: "レビュー密度",
                 sum_response_time: "平均反応時間",
                 sum_iterations: "平均イテレーション",
+                title_isolated_files: "孤立ファイル (属人化リスク)",
+                tooltip_isolated: "リポジトリ内で特定の1人しか変更していないファイルです。ナレッジが共有されていない潜在的なリスクを示します。",
+                header_file_path: "ファイルパス",
+                header_sole_contributor: "唯一の担当者",
+                header_mod_count: "変更回数",
                 title_commit_details: "コミット詳細",
                 label_commits_by: "コミット履歴:",
                 header_date: "日付",
@@ -1103,13 +1133,62 @@ pub const HTML_TEMPLATE: &str = r#"
             updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
             updateFileTypeChart(filteredData);
+            updateIsolatedFiles(filteredData);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
             updatePredictiveDashboard(filteredData);
         }
 
-        function updateFileTypeChart(filteredData) {
-            const extMap = {};
+        function updateIsolatedFiles(filteredData) {
+            const tbody = document.getElementById('isolatedFilesTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const authorsPerFile = {}; // file_idx -> Set of authors
+            const modsPerFile = {};    // file_idx -> total count
+
+            // Use all available file stats to detect absolute isolation
+            dashboardData.file_stats.forEach(fs => {
+                if (!authorsPerFile[fs.file_idx]) {
+                    authorsPerFile[fs.file_idx] = new Set();
+                    modsPerFile[fs.file_idx] = 0;
+                }
+                authorsPerFile[fs.file_idx].add(normalizeAuthor(fs.author));
+                modsPerFile[fs.file_idx] += fs.count;
+            });
+
+            const isolated = [];
+            Object.keys(authorsPerFile).forEach(fidx => {
+                const authors = authorsPerFile[fidx];
+                if (authors.size === 1) {
+                    isolated.push({
+                        path: filePaths[fidx] || `Unknown (${fidx})`,
+                        author: [...authors][0],
+                        count: modsPerFile[fidx]
+                    });
+                }
+            });
+
+            // Sort by impact (modification count)
+            isolated.sort((a, b) => b.count - a.count);
+
+            const topIsolated = isolated.slice(0, 20); // Show top 20 risky files
+
+            if (topIsolated.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #7f8c8d; padding: 20px;">No isolated files detected.</td></tr>';
+                return;
+            }
+
+            topIsolated.forEach(f => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family: monospace; font-size: 11px;">${f.path}</td>
+                    <td><div class="user-info"><div class="user-avatar" style="width:16px; height:16px; background-color: ${stringToColor(f.author)}"></div>${f.author}</div></td>
+                    <td>${f.count}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
             filteredData.forEach(c => {
                 const total = c.added + c.deleted;
                 const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
