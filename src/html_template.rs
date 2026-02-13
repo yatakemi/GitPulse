@@ -525,16 +525,43 @@ pub const HTML_TEMPLATE: &str = r#"
                     <thead>
                         <tr>
                             <th onclick="toggleSort('author')" id="th-author" data-i18n="header_author">Author</th>
-                            <th onclick="toggleSort('commits')" id="th-commits" data-i18n="header_commits">Commits</th>
-                            <th onclick="toggleSort('added')" id="th-added" data-i18n="header_added">Added</th>
-                            <th onclick="toggleSort('deleted')" id="th-deleted" data-i18n="header_deleted">Deleted</th>
+                            <th onclick="toggleSort('commits')" id="th-commits">
+                                <span data-i18n="header_commits">Commits</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_commits" data-tooltip="Total number of commits.">i</span>
+                            </th>
+                            <th onclick="toggleSort('added')" id="th-added">
+                                <span data-i18n="header_added">Added</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_added" data-tooltip="Total lines added.">i</span>
+                            </th>
+                            <th onclick="toggleSort('deleted')" id="th-deleted">
+                                <span data-i18n="header_deleted">Deleted</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_deleted" data-tooltip="Total lines deleted.">i</span>
+                            </th>
                             <th onclick="toggleSort('total_changes')" id="th-total_changes" data-i18n="header_total_changes">Total Changes</th>
-                            <th onclick="toggleSort('churn_rate')" id="th-churn_rate" data-i18n="sum_churn">Churn Rate</th>
-                            <th onclick="toggleSort('reviewsAssigned')" id="th-reviewsAssigned" data-i18n="header_reviews">Reviews (Assigned)</th>
-                            <th onclick="toggleSort('commentsGiven')" id="th-commentsGiven" data-i18n="header_comments">Review Comments</th>
-                            <th onclick="toggleSort('avgReviewLeadTime')" id="th-avgReviewLeadTime" data-i18n="header_review_lead_time">Review Lead Time</th>
-                            <th onclick="toggleSort('avgLeadTime')" id="th-avgLeadTime" data-i18n="header_avg_lead_time">Branch Lead Time</th>
-                            <th onclick="toggleSort('activeDays')" id="th-activeDays" data-i18n="header_active_days">Active Days</th>
+                            <th onclick="toggleSort('churn_rate')" id="th-churn_rate">
+                                <span data-i18n="sum_churn">Churn Rate</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_churn" data-tooltip="Rework rate.">i</span>
+                            </th>
+                            <th onclick="toggleSort('reviewsAssigned')" id="th-reviewsAssigned">
+                                <span data-i18n="header_reviews">Reviews (Assigned)</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_reviews" data-tooltip="PRs assigned or reviewed.">i</span>
+                            </th>
+                            <th onclick="toggleSort('commentsGiven')" id="th-commentsGiven">
+                                <span data-i18n="header_comments">Review Comments</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_comments" data-tooltip="Points made in reviews.">i</span>
+                            </th>
+                            <th onclick="toggleSort('avgReviewLeadTime')" id="th-avgReviewLeadTime">
+                                <span data-i18n="header_review_lead_time">Review Lead Time</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_review_lead" data-tooltip="Avg days from first comment to merge.">i</span>
+                            </th>
+                            <th onclick="toggleSort('avgLeadTime')" id="th-avgLeadTime">
+                                <span data-i18n="header_avg_lead_time">Branch Lead Time</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_branch_lead" data-tooltip="Avg days from first commit to merge.">i</span>
+                            </th>
+                            <th onclick="toggleSort('activeDays')" id="th-activeDays">
+                                <span data-i18n="header_active_days">Active Days</span>
+                                <span class="info-icon" data-i18n-tooltip="tooltip_user_active_days" data-tooltip="Total days active.">i</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -674,6 +701,15 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_review_depth: "Average number of comments per PR. Measures the thoroughness of the review process.",
                 tooltip_response_time: "Average time from PR creation to the very first review or comment. Measures waiting time for developers.",
                 tooltip_iterations: "Average number of review-and-fix cycles per PR. High iterations suggest complex tasks or unclear requirements.",
+                tooltip_user_commits: "Total number of commits made by the user in the selected period.",
+                tooltip_user_added: "Total lines of code added.",
+                tooltip_user_deleted: "Total lines of code deleted.",
+                tooltip_user_churn: "Rework rate. Higher values indicate more frequent changes to the same code blocks.",
+                tooltip_user_reviews: "Number of Pull Requests where the user was assigned as a reviewer or submitted a review.",
+                tooltip_user_comments: "Number of initial review comments (points made). Replies are excluded.",
+                tooltip_user_review_lead: "Average days from the user's first comment to the PR being merged.",
+                tooltip_user_branch_lead: "Average days from the user's first commit in a branch to the final merge.",
+                tooltip_user_active_days: "Total number of unique days the user made at least one commit.",
                 header_ext: "Ext",
                 header_churn_rate: "Churn%",
                 label_throughput: "Throughput",
@@ -852,6 +888,15 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_review_depth: "1PRあたりの平均コメント数。レビューの丁寧さを測定します。議論が活発なほど見逃しが少ない傾向にあります。",
                 tooltip_response_time: "PR作成から最初のレビュー（またはコメント）までの経過時間。開発者の『待ち時間』を測定します。短いほどコラボレーションが迅速です。",
                 tooltip_iterations: "1PRあたりのレビュー往復回数。回数が多い場合は、要件の不明確さや設計の複雑さを示唆します。",
+                tooltip_user_commits: "期間中に行われた総コミット数（マージを含む）。",
+                tooltip_user_added: "期間中に追加された総行数。",
+                tooltip_user_deleted: "期間中に削除された総行数。",
+                tooltip_user_churn: "手戻り率。高いほど同じ箇所の修正やリワークが多いことを示します。",
+                tooltip_user_reviews: "レビュワーとして割り当てられた、または実際にレビューを投稿したPRの数。",
+                tooltip_user_comments: "レビューで指摘（スレッド開始）をした回数。返信は含みません。",
+                tooltip_user_review_lead: "最初の指摘からマージされるまでの平均日数。",
+                tooltip_user_branch_lead: "ブランチで自身の最初のコミットからマージされるまでの平均日数。",
+                tooltip_user_active_days: "期間中に1回以上コミットがあった日数の合計。",
                 header_ext: "拡張子",
                 header_added: "追加",
                 header_deleted: "削除",
