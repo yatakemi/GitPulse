@@ -155,14 +155,12 @@ impl GitHubClient {
         
         let mut all_prs = Vec::new();
         let mut cursor: Option<String> = None;
-        let pages_to_fetch = 20; // Fetch up to 1000 PRs (50 per page)
+        let pages_to_fetch = 60; // Fetch up to 3000 PRs (50 per page)
 
         for page in 1..=pages_to_fetch {
-            if page > 1 {
-                print!("\r   Fetching page {}/{}...", page, pages_to_fetch);
-                use std::io::Write;
-                std::io::stdout().flush().ok();
-            }
+            print!("\r   Fetching PRs... (Page {}/{}, Collected: {})", page, pages_to_fetch, all_prs.len());
+            use std::io::Write;
+            std::io::stdout().flush().ok();
 
             // Using GraphQL for efficiency to get PRs and their reviews in one go
             let query = r#"
