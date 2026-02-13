@@ -1872,8 +1872,9 @@ pub const HTML_TEMPLATE: &str = r#"
             const ninetyDaysBefore = new Date(eventDate);
             ninetyDaysBefore.setDate(eventDate.getDate() - 90);
             
-            // Filter PRs by selected users
-            const relevantPRs = dashboardData.github_prs.filter(pr => selectedUsers.has(normalizeAuthor(pr.author)));
+            // Use ALL PRs for repository-wide initiative assessment
+            // This ensures the assessment works even if GitHub-to-Git user mapping (aliases) is not set up.
+            const relevantPRs = dashboardData.github_prs;
 
             const beforePRs = relevantPRs.filter(pr => {
                 const d = new Date(pr.created_at);
@@ -1887,12 +1888,12 @@ pub const HTML_TEMPLATE: &str = r#"
 
             if (beforePRs.length === 0 || afterPRs.length === 0) {
                 let reason = "";
-                if (beforePRs.length === 0 && afterPRs.length === 0) reason = "No PRs found for selected users in the evaluation window.";
-                else if (beforePRs.length === 0) reason = `No PRs found for selected users in the 90 days prior to ${event.date}.`;
-                else reason = `No PRs found for selected users on or after ${event.date}.`;
+                if (beforePRs.length === 0 && afterPRs.length === 0) reason = "No PRs found in the total history.";
+                else if (beforePRs.length === 0) reason = `No PRs found in the 90 days prior to ${event.date}.`;
+                else reason = `No PRs found on or after ${event.date}.`;
                 
                 const desc = document.getElementById('impactDescription');
-                if (desc) desc.innerHTML = `<span style="color: #e74c3c;">⚠️ <strong>Assessment Unavailable:</strong> ${reason}</span><br><small>Found ${relevantPRs.length} total PRs for selected users. Try adjusting filters or checking the event date.</small>`;
+                if (desc) desc.innerHTML = `<span style="color: #e74c3c;">⚠️ <strong>Assessment Unavailable:</strong> ${reason}</span><br><small>Total PRs in data: ${relevantPRs.length}. If you see PRs in other charts but not here, check if the initiative date (${event.date}) matches your PR history. Note: This section analyzes the entire repository to measure process changes.</small>`;
                 return;
             }
 
