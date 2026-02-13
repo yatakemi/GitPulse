@@ -185,6 +185,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         }
 
         let mut lead_time_days = None;
+        let mut inherited_files = std::collections::HashSet::new();
+
         if is_merge && commit.parent_count() >= 2 {
             let mut revwalk = repo.revwalk()?;
             revwalk.push(commit.parent_id(1)?)?;
@@ -199,7 +201,32 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             for oid_res in revwalk {
                 if let Ok(oid) = oid_res {
                     if let Ok(c) = repo.find_commit(oid) {
-                        // Only count commits by the same author to measure personal lead time
+                        // Inherit file info from commits in the merged branch
+                        if let Ok(tree) = c.tree() {
+                            let parent_tree = c.parent(0).and_then(|p| p.tree()).ok();
+                            if let Ok(diff) = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None) {
+                                diff.foreach(&mut |delta, _| {
+                                    for path_opt in [delta.old_file().path(), delta.new_file().path()] {
+                                        if let Some(path) = path_opt.and_then(|p| p.to_str()) {
+                                            if !is_excluded(path, &config.exclude) {
+                                                let path_string = path.to_string();
+                                                let idx = if let Some(&i) = file_map.get(&path_string) {
+                                                    i
+                                                } else {
+                                                    let i = file_paths.len();
+                                                    file_paths.push(path_string.clone());
+                                                    file_map.insert(path_string, i);
+                                                    i
+                                                };
+                                                inherited_files.insert(idx);
+                                            }
+                                        }
+                                    }
+                                    true
+                                }, None, None, None).ok();
+                            }
+                        }
+
                         if c.author().email().unwrap_or("") == merge_author_email {
                             let t = c.time().seconds();
                             if t < oldest_timestamp {
@@ -216,14 +243,13 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             if found_own_commit {
                 let diff_sec = commit.time().seconds() - oldest_timestamp;
                 let days = (diff_sec / (24 * 3600)) as u32;
-                // Cap at 180 days to filter out extreme outliers/maintenance branches
                 if days <= 180 {
                     lead_time_days = Some(days.max(1));
                 }
             }
         }
 
-        let (added, deleted, commit_files) = if commit.parent_count() == 0 {
+        let (added, deleted, mut commit_files) = if commit.parent_count() == 0 {
             // Initial commit
             if let Ok(tree) = commit.tree() {
                 let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
@@ -239,6 +265,13 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
             process_diff(&repo, &diff, config, &mut file_map, &mut file_paths)?
         };
+
+        // Merge inherited files for accurate file analysis in merges-only mode
+        if !inherited_files.is_empty() {
+            let mut unique_files: std::collections::HashSet<usize> = commit_files.into_iter().collect();
+            unique_files.extend(inherited_files);
+            commit_files = unique_files.into_iter().collect();
+        }
 
         // Apply Commit Filtering (Large scale changes or refactors)
         let total_changes = added + deleted;
