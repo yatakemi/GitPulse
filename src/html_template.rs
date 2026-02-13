@@ -217,10 +217,6 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <label data-i18n="end">End:</label>
                 <input type="date" id="endDate" onchange="updateDashboard()">
             </div>
-            <div class="control-group">
-                <input type="checkbox" id="showTrend" onchange="updateDashboard()">
-                <label for="showTrend" data-i18n="trend">7-Day Trend</label>
-            </div>
         </div>
 
         <div class="summary-cards">
@@ -421,6 +417,10 @@ pub const HTML_TEMPLATE: &str = concat!(
                             <option value="line" data-i18n="chart_line">Line Chart</option>
                             <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
                         </select>
+                        <div class="control-group" style="font-size: 12px; margin-left: 10px;">
+                            <input type="checkbox" id="showTrend" onchange="updateDashboard()">
+                            <label for="showTrend" data-i18n="trend">7-Day Trend</label>
+                        </div>
                     </div>
                 </div>
                 <canvas id="productivityChart"></canvas>
