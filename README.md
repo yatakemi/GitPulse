@@ -93,6 +93,12 @@ Unify multiple author names/emails into a single user.
 # Merges FROM these branches INTO feature branches will be ignored
 # to prevent noise from upstream changes.
 base_branches = ["main", "master", "develop"]
+
+# Commit filtering to exclude noise (NEW!)
+[filter.commits]
+max_lines = 2000        # Exclude commits changing > 2000 lines
+max_files = 50          # Exclude commits changing > 50 files
+ignore_messages = ["refactor", "cleanup", "formatting"] # Exclude if message contains
 ```
 
 **Note:** GitHub noreply emails are **automatically merged** to `username` by default.

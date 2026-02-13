@@ -14,6 +14,26 @@ pub struct Config {
     pub events: Vec<EventConfig>,
     #[serde(default = "default_base_branches")]
     pub base_branches: Vec<String>,
+    #[serde(default)]
+    pub filter: CommitFilterConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CommitFilterConfig {
+    pub max_lines: Option<usize>,
+    pub max_files: Option<usize>,
+    #[serde(default)]
+    pub ignore_messages: Vec<String>,
+}
+
+impl Default for CommitFilterConfig {
+    fn default() -> Self {
+        Self {
+            max_lines: Some(5000), // Default high threshold
+            max_files: Some(100),  // Default high threshold
+            ignore_messages: vec![],
+        }
+    }
 }
 
 fn default_base_branches() -> Vec<String> {

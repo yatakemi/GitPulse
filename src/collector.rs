@@ -244,6 +244,23 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             process_diff(&repo, &diff, config, &mut file_map, &mut file_paths)?
         };
 
+        // Apply Commit Filtering (Large scale changes or refactors)
+        let total_changes = added + deleted;
+        let num_files = commit_files.len();
+        
+        if let Some(max) = config.filter.max_lines {
+            if total_changes > max { continue; }
+        }
+        if let Some(max) = config.filter.max_files {
+            if num_files > max { continue; }
+        }
+        if !config.filter.ignore_messages.is_empty() {
+            let msg_lower = commit_message.to_lowercase();
+            if config.filter.ignore_messages.iter().any(|m| msg_lower.contains(&m.to_lowercase())) {
+                continue;
+            }
+        }
+
         stats_list.push(CommitStats {
             hash: oid.to_string(),
             author: author_name,
