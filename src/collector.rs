@@ -64,6 +64,12 @@ fn process_diff(_repo: &Repository, diff: &git2::Diff, config: &crate::config::C
 
 fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
     let msg_lower = message.to_lowercase();
+    
+    // Always exclude remote-tracking branch merges as they are typically sync noise
+    if msg_lower.contains("merge remote-tracking branch") || msg_lower.contains("merge branch 'origin'") {
+        return true;
+    }
+
     for branch in base_branches {
         let b = branch.to_lowercase();
         // Check for standard merge, GitHub PR merge, and "Sync branch" patterns
