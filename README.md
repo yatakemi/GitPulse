@@ -9,15 +9,15 @@
 - 🚀 **Pure Rust**: Single binary, minimal dependencies, and extremely fast.
 - 📊 **Interactive Dashboard**: Generates beautiful HTML reports with Chart.js.
     - **Timeline**: Visualize code changes (Added/Deleted) or commit counts over time.
-    - **User Activity**: Deep dive into contributor metrics: **Total Changes**, **Avg Lead Time**, and **Top Directories** (AI-detected expertise).
-    - **GitHub Reviews**: Track review activity: **Reviews Given** per user and a detailed PR activity table.
+    - **User Activity**: Deep dive into contributor metrics: **Total Changes**, **Branch Lead Time**, and **Review Metrics**.
+    - **GitHub Reviews**: Comprehensive review analysis: **Reviews Assigned**, **Comments Given (Points made)**, and **Review Lead Time**.
+    - **Drill-down Investigation**: Click on any user to see their full commit history, messages, and affected files (NEW!).
     - **User Filtering**: Toggle specific users on/off to analyze subsets of the team. State preserved in URL.
-    - **Trends**: 7-day moving average trend lines to see the big picture.
+    - **Trends & Forecasts**: 7-day moving average trend lines and **ML-based Velocity Forecasting** (NEW!).
     - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
     - **Team Health**: Track "Code Churn" (Refactoring/Rework) and "Work Duration" trends.
-    - **File Hotspots**: Identify frequently modified files that might need architectural attention.
 - 🎯 **Flexible Metrics**: Switch between Added, Deleted, Total lines, and Commit Count.
-- 🔀 **Merge Commits**: Tracks merge commits (as 0 changes) and displays them separately in the dashboard.
+- 🔀 **Merge Commits**: Tracks merge commits (as 0 changes) and calculates **Branch Lead Time** (first commit to merge).
 - 🤝 **User Unification**: Merge duplicate users (e.g., personal vs work email) and automatically handle GitHub noreply addresses.
 - 🐳 **Portable**: Database-free (uses JSON for intermediate storage), making it easy to version control your stats.
 
@@ -134,22 +134,23 @@ Identifies the top 20 most frequently modified files. Frequent changes to the sa
 - **Instability**: Code that is fragile and requires constant fixing.
 - **Architectural Bottleneck**: Core logic that everyone touches concurrently.
 
-### 🧘 Work Habits & Team Health
-- **Est. Daily Work Duration**: Calculates the time span between the first and last commit of the day for each user. Helps identify potential burnout or unhealthy working hours.
-- **Code Churn (Volatility)**: Measures "Rework" (edits to existing code).
-    - **Calculation**: `Churn = (Added + Deleted) - abs(Added - Deleted)`. This is mathematically identical to `2 * min(Added, Deleted)`, representing the number of lines replaced in a commit.
-    - **Churn Rate**: `(Total Churn / Total Changes) * 100`. High churn might indicate unclear requirements, frequent refactoring, or technical debt.
-- **Health Trends**: A dedicated chart tracking Churn Rate and Work Duration over time to spot negative trends early.
+### 🔍 Commit Drill-down (v0.14+)
+If you see a spike in changes or commits, simply click on the user's name in the activity table. GitPulse will display a detailed list of all commits for that period, including:
+- **Commit Messages**: Understand the *why* behind the changes.
+- **Affected Files**: See which modules were touched.
+- **Granular Stats**: View the exact lines added/deleted for each individual commit.
 
-### ℹ️ Interactive Explanations
-The dashboard includes tooltips (info icons) for each chart, explaining what to look for and how to interpret the data, making it easier for non-technical stakeholders to understand.
+### 🐙 GitHub Review Performance (v0.14+)
+When using the `--github` flag, GitPulse uses GraphQL to provide high-resolution review metrics:
+- **Reviews (Assigned)**: Count of Pull Requests where the user was requested as a reviewer. This measures the *expected* review load.
+- **Review Comments**: Count of points/comments made by the user (initial thread comments only). This measures *actual* feedback quality.
+- **Review Lead Time**: Calculates the time from the **first review comment** to the **final merge**. This identifies bottlenecks in the review process.
 
-### 🐙 GitHub Review Activity (v0.13.10+)
-When the `--github` flag is used, GitPulse fetches the recent Pull Requests and their reviews using the GitHub GraphQL API. 
-- **Reviews Given**: See who is contributing to the team through code reviews, not just code changes.
-- **Accuracy**: Fetches up to 500 recent PRs to ensure coverage of older review activity.
-- **Caching**: Data is cached in the system Temp directory (`/tmp` or `/var/folders/...`) to avoid Rate Limits. Use `--no-cache` to force a fresh fetch.
-- **Authentication**: Automatically uses `gh` CLI's token if available, otherwise falls back to the `GITHUB_TOKEN` environment variable.
+### 🔮 Velocity Forecasting (BETA)
+GitPulse analyzes the last 4 weeks of commit velocity to predict future throughput.
+- **Current Velocity**: Average commits per week with a confidence interval.
+- **Target Goal Estimation**: Set a target commit goal to see an estimated completion date based on your team's current pace.
+- **Trend Analysis**: See if your team is accelerating or slowing down.
 
 ## Architecture
 
