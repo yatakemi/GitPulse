@@ -109,6 +109,10 @@
                 label_projected_throughput: "Projected 60-Day Throughput",
                 label_remaining_work: "Remaining Work",
                 label_est_completion: "Estimated Completion Date",
+                label_weekly_commitment: "Next Week's Commitment",
+                label_weekly_goal: "Goal for next week",
+                msg_weekly_forecast: "Next week, reaching <strong>{goal}</strong> commits has a <strong>{prob}%</strong> probability.",
+                msg_safe_commitment: "To ensure >90% confidence, commit up to <strong>{safe}</strong> commits.",
                 forecast_chart_title: "Velocity Forecasting",
                 insight_predicted_goal_title: "Target Forecast",
                 insight_predicted_goal_desc: "You will complete the remaining {remaining} commits by {date}.",
@@ -304,6 +308,10 @@
                 label_projected_throughput: "今後60日間の予測作業量",
                 label_remaining_work: "残りの作業量",
                 label_est_completion: "予測完了日",
+                label_weekly_commitment: "次週のコミット確約",
+                label_weekly_goal: "来週の目標",
+                msg_weekly_forecast: "次の一週間で <strong>{goal}</strong> コミット達成できる確率は <strong>{prob}%</strong> です。",
+                msg_safe_commitment: "90%以上の確実性を求めるなら、<strong>{safe}</strong> コミットまでを推奨します。",
                 forecast_chart_title: "ベロシティ予測",
                 insight_predicted_goal_title: "🎯 目標予測",
                 insight_predicted_goal_desc: "残り{remaining}コミットは{date}に完了する見込みです。",
@@ -1718,6 +1726,45 @@
                 if (document.getElementById('estCompletionRange')) document.getElementById('estCompletionRange').innerHTML = 
                     `🚀 Optimistic: ${optimisticDate}<br>🐢 Pessimistic: ${pessimisticDate}`;
                 
+                // --- Weekly Commitment Forecast ---
+                const weeklyGoal = parseInt(document.getElementById('weeklyGoalInput').value) || 0;
+                
+                // Normal Distribution CDF approximation (erf)
+                function normalCDF(x, mean, std) {
+                    if (std === 0) return x <= mean ? 1 : 0;
+                    const z = (x - mean) / std;
+                    const t = 1.0 / (1.0 + 0.5 * Math.abs(z));
+                    const ans = 1 - t * Math.exp(-z * z - 1.26551223 +
+                        t * (1.00002368 +
+                        t * (0.37409196 +
+                        t * (0.09678418 +
+                        t * (-0.18628806 +
+                        t * (0.27886807 +
+                        t * (-1.13520398 +
+                        t * (1.48851587 +
+                        t * (-0.82215223 +
+                        t * 0.17087277)))))))));
+                    return z >= 0 ? ans : 1 - ans;
+                }
+
+                // Probability of achieving AT LEAST weeklyGoal: P(V >= Goal) = 1 - CDF(Goal)
+                // We shift Goal slightly (-0.5) to include the goal value itself in discrete space
+                let probability = (1 - normalCDF(weeklyGoal - 0.5, mean, stdev)) * 100;
+                if (probability > 99) probability = 99;
+                if (probability < 1) probability = 1;
+
+                // Safe commitment for 90% confidence (P(V >= Z) = 0.9 => Z = mean - 1.28 * stdev)
+                const safeCommitment = Math.max(0, Math.floor(mean - 1.28 * stdev));
+
+                const insightDiv = document.getElementById('commitmentInsight');
+                if (insightDiv) {
+                    insightDiv.innerHTML = t('msg_weekly_forecast')
+                        .replace('{goal}', weeklyGoal)
+                        .replace('{prob}', Math.round(probability)) +
+                        "<br><br>" +
+                        t('msg_safe_commitment').replace('{safe}', safeCommitment);
+                }
+
                 // Add predictive insight
                 const insightsContainer = document.getElementById('insightsGrid');
                 if (insightsContainer) {

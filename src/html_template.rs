@@ -395,6 +395,15 @@ pub const HTML_TEMPLATE: &str = concat!(
                         <span style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>
+                <div class="forecast-card" style="border-left-color: #27ae60;">
+                    <div class="forecast-label" data-i18n="label_weekly_commitment">Next Week's Commitment</div>
+                    <div id="commitmentInsight" style="font-size: 14px; margin: 10px 0; line-height: 1.6;">-</div>
+                    <div class="goal-setter">
+                        <span data-i18n="label_weekly_goal">Goal for next week</span>
+                        <input type="number" id="weeklyGoalInput" value="20" onchange="updateDashboard()">
+                        <span style="font-size: 12px; color: #7f8c8d;">commits</span>
+                    </div>
+                </div>
             </div>
             <div class="chart-box full-width" style="box-shadow: none; padding: 0;">
                 <div class="chart-title">
