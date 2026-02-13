@@ -540,7 +540,7 @@
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
-            updateFileTypeChart(filteredData);
+            updateFileTypeChart();
             updateIsolatedFiles(filteredData);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
@@ -598,20 +598,26 @@
             });
         }
 
-        function updateFileTypeChart(filteredData) {
+        function updateFileTypeChart() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
             const extMap = {};
             let processedCommits = 0;
             let commitsWithFiles = 0;
 
-            filteredData.forEach(c => {
+            // Use RAW commits instead of aggregated daily stats to access file info
+            const filteredCommits = dashboardData.commits.filter(c => {
+                const date = c.date.split('T')[0];
+                return date >= startDate && date <= endDate && selectedUsers.has(normalizeAuthor(c.author));
+            });
+
+            filteredCommits.forEach(c => {
                 processedCommits++;
                 const total = (c.added || 0) + (c.deleted || 0);
                 const churn = total - Math.abs((c.added || 0) - (c.deleted || 0));
                 
                 const commitExts = new Set();
-                const hasDetailedFiles = c.files && Array.isArray(c.files) && c.files.length > 0;
-
-                if (hasDetailedFiles) {
+                if (c.files && Array.isArray(c.files) && c.files.length > 0) {
                     commitsWithFiles++;
                     c.files.forEach(fidx => {
                         const path = filePaths[fidx];
@@ -632,8 +638,7 @@
                     });
                 } 
                 
-                // Fallback: If no files were detected but there's activity, label as others
-                if (commitExts.size === 0 && (total > 0 || c.commits > 0)) {
+                if (commitExts.size === 0 && total > 0) {
                     commitExts.add('others');
                 }
 
@@ -644,18 +649,16 @@
 
                 commitExts.forEach(ext => {
                     if (!extMap[ext]) extMap[ext] = { ext, added: 0, deleted: 0, churn: 0, commits: 0 };
-                    // Approximate added/deleted distribution
                     if (total > 0) {
                         const ratio = (c.added || 0) / total;
                         extMap[ext].added += Math.round(linesPerExt * ratio);
                         extMap[ext].deleted += Math.round(linesPerExt * (1 - ratio));
                     }
                     extMap[ext].churn += churnPerExt;
-                    extMap[ext].commits += (c.commits || 1) / commitExts.size;
+                    extMap[ext].commits += 1 / commitExts.size;
                 });
             });
 
-            // Sort by total changes (descending), then by commit count
             const sortedExts = Object.values(extMap).sort((a, b) => {
                 const totalA = a.added + a.deleted;
                 const totalB = b.added + b.deleted;
