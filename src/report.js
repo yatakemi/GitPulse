@@ -622,9 +622,18 @@
                     c.files.forEach(fidx => {
                         const path = filePaths[fidx];
                         if (path && typeof path === 'string') {
+                            const pathLower = path.toLowerCase();
                             const filename = path.split('/').pop() || "";
-                            const lastDotIndex = filename.lastIndexOf('.');
                             
+                            // Detect test files
+                            if (pathLower.includes('/test/') || pathLower.includes('/tests/') || 
+                                filename.includes('.spec.') || filename.includes('.test.') ||
+                                filename.endsWith('_test.rs') || filename.endsWith('_spec.rb')) {
+                                commitExts.add('test');
+                                return;
+                            }
+
+                            const lastDotIndex = filename.lastIndexOf('.');
                             if (lastDotIndex > 0 && lastDotIndex < filename.length - 1) {
                                 const ext = filename.substring(lastDotIndex + 1).toLowerCase();
                                 if (ext.length <= 15) commitExts.add(ext);
