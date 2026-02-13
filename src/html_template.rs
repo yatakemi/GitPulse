@@ -201,16 +201,6 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <option value="ja">日本語</option>
                 </select>
             </div>
-            <div class="control-group">
-                <label data-i18n="metric">Metric:</label>
-                <select id="metricSelect" onchange="updateDashboard()">
-                    <option value="total_changes" data-i18n="metric_total">Total Changes</option>
-                    <option value="added" data-i18n="metric_added">Added Lines</option>
-                    <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
-                    <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
-                    <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
-                </select>
-            </div>
             
             <div class="control-group">
                 <label data-i18n="start">Start:</label>
@@ -428,6 +418,16 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
                     <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
                     <div class="chart-controls">
+                        <div class="control-group" style="font-size: 12px;">
+                            <label data-i18n="metric">Metric:</label>
+                            <select id="metricSelect" onchange="updateDashboard()">
+                                <option value="total_changes" data-i18n="metric_total">Total Changes</option>
+                                <option value="added" data-i18n="metric_added">Added Lines</option>
+                                <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
+                                <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
+                                <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
+                            </select>
+                        </div>
                         <select id="chartTypeSelect" onchange="updateDashboard()">
                             <option value="line" data-i18n="chart_line">Line Chart</option>
                             <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
