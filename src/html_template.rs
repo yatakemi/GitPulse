@@ -1773,14 +1773,14 @@ pub const HTML_TEMPLATE: &str = r#"
             const eventSelect = document.getElementById('eventSelect');
             
             if (!dashboardData.events || dashboardData.events.length === 0 || !dashboardData.github_prs || dashboardData.github_prs.length === 0) {
-                impactSection.style.display = 'none';
+                if (impactSection) impactSection.style.display = 'none';
                 return;
             }
 
-            impactSection.style.display = 'block';
+            if (impactSection) impactSection.style.display = 'block';
             
             // Initialize event selector if empty
-            if (eventSelect.options.length === 0) {
+            if (eventSelect && eventSelect.options.length === 0) {
                 dashboardData.events.forEach((e, idx) => {
                     const opt = document.createElement('option');
                     opt.value = idx;
@@ -1791,31 +1791,41 @@ pub const HTML_TEMPLATE: &str = r#"
                 eventIdx = dashboardData.events.length - 1;
             }
 
+            // If eventIdx is not provided (called from updateDashboard), use current selector value
+            if (eventIdx === undefined && eventSelect) {
+                eventIdx = parseInt(eventSelect.value);
+            }
+
             const event = dashboardData.events[eventIdx];
+            if (!event) return;
+
             const eventDate = new Date(event.date);
-            impactTableBody.innerHTML = '';
+            if (impactTableBody) impactTableBody.innerHTML = '';
             
-            // Look back up to 90 days for "Before" data to ensure we have enough samples
             const ninetyDaysBefore = new Date(eventDate);
             ninetyDaysBefore.setDate(eventDate.getDate() - 90);
             
-            const beforePRs = dashboardData.github_prs.filter(pr => {
+            // Filter PRs by selected users
+            const relevantPRs = dashboardData.github_prs.filter(pr => selectedUsers.has(normalizeAuthor(pr.author)));
+
+            const beforePRs = relevantPRs.filter(pr => {
                 const d = new Date(pr.created_at);
                 return d >= ninetyDaysBefore && d < eventDate;
             });
             
-            const afterPRs = dashboardData.github_prs.filter(pr => {
+            const afterPRs = relevantPRs.filter(pr => {
                 const d = new Date(pr.created_at);
                 return d >= eventDate;
             });
 
             if (beforePRs.length === 0 || afterPRs.length === 0) {
                 let reason = "";
-                if (beforePRs.length === 0 && afterPRs.length === 0) reason = "No PRs found before or after the event.";
-                else if (beforePRs.length === 0) reason = `No PRs found in the 90 days prior to ${event.date}.`;
-                else reason = `No PRs found on or after ${event.date}.`;
+                if (beforePRs.length === 0 && afterPRs.length === 0) reason = "No PRs found for selected users in the evaluation window.";
+                else if (beforePRs.length === 0) reason = `No PRs found for selected users in the 90 days prior to ${event.date}.`;
+                else reason = `No PRs found for selected users on or after ${event.date}.`;
                 
-                document.getElementById('impactDescription').innerHTML = `<span style="color: #e74c3c;">⚠️ <strong>Assessment Unavailable:</strong> ${reason}</span><br><small>Make sure you have collected GitHub data with the --github flag and that PRs exist around the event date.</small>`;
+                const desc = document.getElementById('impactDescription');
+                if (desc) desc.innerHTML = `<span style="color: #e74c3c;">⚠️ <strong>Assessment Unavailable:</strong> ${reason}</span><br><small>Found ${relevantPRs.length} total PRs for selected users. Try adjusting filters or checking the event date.</small>`;
                 return;
             }
 
