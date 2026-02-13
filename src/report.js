@@ -615,20 +615,23 @@
                         const path = filePaths[fidx];
                         if (path && typeof path === 'string') {
                             const filename = path.split('/').pop() || "";
-                            if (filename.includes('.')) {
-                                const ext = filename.split('.').pop().toLowerCase();
-                                if (ext && ext.length < 10) commitExts.add(ext);
-                                else commitExts.add('others');
+                            const lastDotIndex = filename.lastIndexOf('.');
+                            
+                            if (lastDotIndex > 0 && lastDotIndex < filename.length - 1) {
+                                const ext = filename.substring(lastDotIndex + 1).toLowerCase();
+                                if (ext.length <= 15) {
+                                    commitExts.add(ext);
+                                } else {
+                                    commitExts.add('others');
+                                }
+                            } else if (filename.startsWith('.')) {
+                                // Files like .gitignore, .env
+                                commitExts.add('config');
                             } else {
                                 commitExts.add('no-ext');
                             }
-                        } else {
-                            commitExts.add('unknown');
                         }
                     });
-                } else if (total > 0) {
-                    // Fallback for commits that have line changes but no file info
-                    commitExts.add('others');
                 }
 
                 if (commitExts.size === 0) return;
