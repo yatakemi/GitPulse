@@ -142,9 +142,14 @@ If you see a spike in changes or commits, simply click on the user's name in the
 
 ### 🐙 GitHub Review Performance (v0.14+)
 When using the `--github` flag, GitPulse uses GraphQL to provide high-resolution review metrics:
-- **Reviews (Assigned)**: Count of Pull Requests where the user was requested as a reviewer. This measures the *expected* review load.
-- **Review Comments**: Count of points/comments made by the user (initial thread comments only). This measures *actual* feedback quality.
-- **Review Lead Time**: Calculates the time from the **first review comment** to the **final merge**. This identifies bottlenecks in the review process.
+- **Reviews (Assigned)**: Count of Pull Requests where the user was requested as a reviewer.
+- **Review Comments**: Count of points/comments made by the user.
+- **Review Lead Time**: Calculates the time from the first review comment to the final merge.
+- **Rework Rate**: Percentage of PRs that received a "Request Changes" review. High rates may indicate scope creep or communication gaps.
+- **Review Depth**: Average comments per PR. Measures the thoroughness of the review process.
+- **Time to First Response**: Average time from PR creation to the first review or comment.
+- **Review Reciprocity Matrix**: A heatmap showing "who reviews whom" to identify silos and team dependencies.
+- **PR Size vs Lead Time Correlation**: A scatter plot analyzing if larger PRs take significantly longer to merge, helping teams optimize PR size.
 
 ### 🔮 Velocity Forecasting (BETA)
 GitPulse analyzes the last 4 weeks of commit velocity to predict future throughput.

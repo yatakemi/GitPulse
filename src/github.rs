@@ -24,6 +24,11 @@ pub struct GitHubPR {
     pub html_url: String,
     pub created_at: DateTime<Utc>,
     pub merged_at: Option<DateTime<Utc>>,
+    pub state: String,
+    pub additions: usize,
+    pub deletions: usize,
+    pub changed_files: usize,
+    pub total_comments: usize,
     pub reviews: Vec<GitHubReview>,
     pub review_requests: Vec<String>,
     pub review_comments: Vec<GitHubReviewComment>,
@@ -162,6 +167,11 @@ impl GitHubClient {
                     author { login }
                     createdAt
                     mergedAt
+                    state
+                    additions
+                    deletions
+                    changedFiles
+                    comments { totalCount }
                     reviewRequests(last: 20) {
                       nodes {
                         requestedReviewer {
@@ -267,6 +277,11 @@ impl GitHubClient {
                         html_url: node["url"].as_str().unwrap_or("").to_string(),
                         created_at: DateTime::parse_from_rfc3339(node["createdAt"].as_str().unwrap_or(""))?.with_timezone(&Utc),
                         merged_at: node["mergedAt"].as_str().and_then(|s| DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc))),
+                        state: node["state"].as_str().unwrap_or("").to_string(),
+                        additions: node["additions"].as_u64().unwrap_or(0) as usize,
+                        deletions: node["deletions"].as_u64().unwrap_or(0) as usize,
+                        changed_files: node["changedFiles"].as_u64().unwrap_or(0) as usize,
+                        total_comments: node["comments"]["totalCount"].as_u64().unwrap_or(0) as usize,
                         reviews,
                         review_requests,
                         review_comments,

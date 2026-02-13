@@ -235,6 +235,30 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
         </div>
 
+        <!-- NEW: Advanced GitHub Summary -->
+        <div class="summary-cards" id="githubAdvancedSummary" style="display: none; margin-top: -10px; margin-bottom: 30px;">
+            <div class="card" style="border-top: 4px solid #e67e22;">
+                <h3 data-i18n="sum_rework_rate">Rework Rate</h3>
+                <div class="value" id="reworkRateValue">-</div>
+                <div style="font-size: 11px; color: #7f8c8d;">% of PRs with Request Changes</div>
+            </div>
+            <div class="card" style="border-top: 4px solid #e67e22;">
+                <h3 data-i18n="sum_review_depth">Review Depth</h3>
+                <div class="value" id="reviewDepthValue">-</div>
+                <div style="font-size: 11px; color: #7f8c8d;">Avg Comments / PR</div>
+            </div>
+            <div class="card" style="border-top: 4px solid #e67e22;">
+                <h3 data-i18n="sum_response_time">Avg Response Time</h3>
+                <div class="value" id="avgResponseTimeValue">-</div>
+                <div style="font-size: 11px; color: #7f8c8d;">Time to first reaction</div>
+            </div>
+            <div class="card" style="border-top: 4px solid #e67e22;">
+                <h3 data-i18n="sum_iterations">Avg Iterations</h3>
+                <div class="value" id="avgIterationsValue">-</div>
+                <div style="font-size: 11px; color: #7f8c8d;">Review-to-Merge cycles</div>
+            </div>
+        </div>
+
         <div class="user-selection-area">
             <div class="user-selection-header">
                 <h2><span data-i18n="title_user_selection">Filter by Users</span></h2>
@@ -362,6 +386,21 @@ pub const HTML_TEMPLATE: &str = r#"
                     <span class="info-icon" data-tooltip="Number of review comments (initial thread comments) given over time.">i</span>
                 </div>
                 <canvas id="reviewActivityChart"></canvas>
+            </div>
+            <!-- Advanced GitHub Visuals -->
+            <div class="chart-box full-width" id="reciprocityBox" style="display: none;">
+                <div class="chart-title">
+                    <span data-i18n="chart_reciprocity">Review Reciprocity Matrix</span>
+                    <span class="info-icon" data-tooltip="Who reviews whom. Vertical axis: Author, Horizontal axis: Reviewer. High numbers indicate strong review pairings. Useful for spotting silos.">i</span>
+                </div>
+                <canvas id="reciprocityChart"></canvas>
+            </div>
+            <div class="chart-box full-width" id="scatterBox" style="display: none;">
+                <div class="chart-title">
+                    <span data-i18n="chart_scatter">PR Size vs Lead Time</span>
+                    <span class="info-icon" data-tooltip="Correlation between PR size (Additions + Deletions) and Lead Time. Ideally, smaller PRs should have lower lead times.">i</span>
+                </div>
+                <canvas id="scatterChart"></canvas>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
@@ -507,7 +546,13 @@ pub const HTML_TEMPLATE: &str = r#"
                 label_est_completion: "Estimated Completion Date",
                 forecast_chart_title: "Velocity Forecasting",
                 insight_predicted_goal_title: "Target Forecast",
-                insight_predicted_goal_desc: "You will reach your goal of {target} commits by {date}."
+                insight_predicted_goal_desc: "You will reach your goal of {target} commits by {date}.",
+                sum_rework_rate: "Rework Rate",
+                sum_review_depth: "Review Depth",
+                sum_response_time: "Avg Response Time",
+                sum_iterations: "Avg Iterations",
+                chart_reciprocity: "Review Reciprocity Matrix",
+                chart_scatter: "PR Size vs Lead Time"
             },
             ja: {
                 title: "Git生産性レポート",
@@ -608,7 +653,13 @@ pub const HTML_TEMPLATE: &str = r#"
                 label_est_completion: "予測完了日",
                 forecast_chart_title: "ベロシティ予測",
                 insight_predicted_goal_title: "🎯 目標予測",
-                insight_predicted_goal_desc: "目標の{target}コミットには{date}に到達する見込みです。"
+                insight_predicted_goal_desc: "目標の{target}コミットには{date}に到達する見込みです。",
+                sum_rework_rate: "修正依頼率",
+                sum_review_depth: "レビュー密度",
+                sum_response_time: "平均反応時間",
+                sum_iterations: "平均イテレーション",
+                chart_reciprocity: "レビュー相互関係マトリクス",
+                chart_scatter: "PRサイズ vs リードタイム"
             }
         };
 
@@ -664,10 +715,12 @@ pub const HTML_TEMPLATE: &str = r#"
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
         const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
+        const reciprocityCtx = document.getElementById('reciprocityChart').getContext('2d');
+        const scatterCtx = document.getElementById('scatterChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, ctxChart, forecastChart;
+        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -779,6 +832,7 @@ pub const HTML_TEMPLATE: &str = r#"
             updateOwnershipChart(filteredData, startDate, endDate);
             updateLeadTimeChart(filteredData, startDate, endDate);
             updateReviewActivityChart(startDate, endDate);
+            updateGitHubAdvancedMetrics(startDate, endDate);
             updateContextSwitchChart(filteredData, startDate, endDate);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
@@ -837,6 +891,181 @@ pub const HTML_TEMPLATE: &str = r#"
                             title: { display: true, text: 'Comments Given' }
                         } 
                     } 
+                }
+            });
+        }
+
+        function updateGitHubAdvancedMetrics(startDate, endDate) {
+            const githubDiv = document.getElementById('githubAdvancedSummary');
+            const reciprocityBox = document.getElementById('reciprocityBox');
+            const scatterBox = document.getElementById('scatterBox');
+
+            if (!dashboardData.github_prs || dashboardData.github_prs.length === 0) {
+                if (githubDiv) githubDiv.style.display = 'none';
+                if (reciprocityBox) reciprocityBox.style.display = 'none';
+                if (scatterBox) scatterBox.style.display = 'none';
+                return;
+            }
+
+            if (githubDiv) githubDiv.style.display = 'flex';
+            if (reciprocityBox) reciprocityBox.style.display = 'block';
+            if (scatterBox) scatterBox.style.display = 'block';
+
+            const filteredPRs = dashboardData.github_prs.filter(pr => {
+                const date = pr.created_at.split('T')[0];
+                return date >= startDate && date <= endDate && selectedUsers.has(normalizeAuthor(pr.author));
+            });
+
+            if (filteredPRs.length === 0) return;
+
+            // 1. Stats Calculation
+            let reworkPrs = 0;
+            let totalComments = 0;
+            let totalResponseTimeMs = 0;
+            let responseCount = 0;
+            let totalIterations = 0;
+            
+            const matrix = {}; // {author: {reviewer: count}}
+            const scatterData = [];
+
+            filteredPRs.forEach(pr => {
+                const author = normalizeAuthor(pr.author);
+                
+                // Rework Rate
+                const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED');
+                if (hasRequestChanges) reworkPrs++;
+
+                // Review Depth
+                totalComments += pr.total_comments || 0;
+
+                // Response Time
+                if (pr.reviews && pr.reviews.length > 0) {
+                    const firstResponse = [...pr.reviews].sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))[0];
+                    const diff = new Date(firstResponse.submitted_at) - new Date(pr.created_at);
+                    if (diff > 0) {
+                        totalResponseTimeMs += diff;
+                        responseCount++;
+                    }
+                }
+
+                // Iterations (Approximated by number of review days or cycles)
+                const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
+                totalIterations += Math.max(1, distinctReviewCycles);
+
+                // Matrix Data
+                if (!matrix[author]) matrix[author] = {};
+                if (pr.reviews) {
+                    pr.reviews.forEach(r => {
+                        const reviewer = normalizeAuthor(r.user);
+                        if (reviewer !== author && selectedUsers.has(reviewer)) {
+                            matrix[author][reviewer] = (matrix[author][reviewer] || 0) + 1;
+                        }
+                    });
+                }
+
+                // Scatter Data (Size vs Lead Time)
+                if (pr.merged_at) {
+                    const leadTimeDays = (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24);
+                    const size = (pr.additions || 0) + (pr.deletions || 0);
+                    if (size > 0 && leadTimeDays > 0) {
+                        scatterData.push({ x: size, y: leadTimeDays, label: pr.title });
+                    }
+                }
+            });
+
+            // Update Summary Cards
+            const reworkRateEl = document.getElementById('reworkRateValue');
+            const reviewDepthEl = document.getElementById('reviewDepthValue');
+            const avgResponseEl = document.getElementById('avgResponseTimeValue');
+            const avgIterEl = document.getElementById('avgIterationsValue');
+
+            if (reworkRateEl) reworkRateEl.textContent = ((reworkPrs / filteredPRs.length) * 100).toFixed(1) + '%';
+            if (reviewDepthEl) reviewDepthEl.textContent = (totalComments / filteredPRs.length).toFixed(1);
+            
+            const avgResH = responseCount > 0 ? (totalResponseTimeMs / responseCount / (1000 * 60 * 60)).toFixed(1) : '-';
+            if (avgResponseEl) avgResponseEl.textContent = avgResH + 'h';
+            if (avgIterEl) avgIterEl.textContent = (totalIterations / filteredPRs.length).toFixed(1);
+
+            // 2. Render Reciprocity Matrix
+            const currentSelected = Array.from(selectedUsers).sort();
+            const matrixData = [];
+            currentSelected.forEach((author, i) => {
+                currentSelected.forEach((reviewer, j) => {
+                    const val = (matrix[author] && matrix[author][reviewer]) ? matrix[author][reviewer] : 0;
+                    matrixData.push({ x: j, y: i, v: val });
+                });
+            });
+
+            if (reciprocityChart) reciprocityChart.destroy();
+            reciprocityChart = new Chart(reciprocityCtx, {
+                type: 'matrix',
+                data: {
+                    datasets: [{
+                        label: 'Review Count',
+                        data: matrixData,
+                        backgroundColor: ctx => {
+                            const v = ctx.dataset.data[ctx.dataIndex].v;
+                            return `rgba(230, 126, 34, ${Math.min(v / 5, 1)})`;
+                        },
+                        width: ({ chart }) => chart.chartArea ? (chart.chartArea.width / currentSelected.length) - 1 : 0,
+                        height: ({ chart }) => chart.chartArea ? (chart.chartArea.height / currentSelected.length) - 1 : 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const d = ctx.raw;
+                                    return `${currentSelected[d.y]} (Author) <- ${currentSelected[d.x]} (Reviewer): ${d.v} reviews`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear', min: 0, max: currentSelected.length - 1,
+                            ticks: { stepSize: 1, callback: v => currentSelected[v] },
+                            grid: { display: false },
+                            title: { display: true, text: 'Reviewer' }
+                        },
+                        y: {
+                            type: 'linear', min: 0, max: currentSelected.length - 1,
+                            ticks: { stepSize: 1, callback: v => currentSelected[v] },
+                            grid: { display: false },
+                            title: { display: true, text: 'Author' }
+                        }
+                    }
+                }
+            });
+
+            // 3. Render Scatter Chart (Size vs Lead Time)
+            if (scatterChart) scatterChart.destroy();
+            scatterChart = new Chart(scatterCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'PRs',
+                        data: scatterData,
+                        backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.raw.label}: ${ctx.raw.x} lines, ${ctx.raw.y.toFixed(1)} days`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Size (Additions + Deletions)' }, type: 'logarithmic' },
+                        y: { title: { display: true, text: 'Lead Time (Days)' }, beginAtZero: true }
+                    }
                 }
             });
         }
