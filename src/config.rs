@@ -24,6 +24,12 @@ pub struct CommitFilterConfig {
     pub max_files: Option<usize>,
     #[serde(default)]
     pub ignore_messages: Vec<String>,
+    #[serde(default = "default_ignore_bots")]
+    pub ignore_bots: bool,
+}
+
+fn default_ignore_bots() -> bool {
+    true
 }
 
 impl Default for CommitFilterConfig {
@@ -32,6 +38,7 @@ impl Default for CommitFilterConfig {
             max_lines: Some(5000), // Default high threshold
             max_files: Some(100),  // Default high threshold
             ignore_messages: vec![],
+            ignore_bots: true,
         }
     }
 }

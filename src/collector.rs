@@ -172,6 +172,16 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let author_name = author.name().unwrap_or("Unknown").to_string();
         let author_email = author.email().unwrap_or("").to_string();
         
+        // Skip bot commits if configured
+        if config.filter.ignore_bots {
+            let lower_name = author_name.to_lowercase();
+            let lower_email = author_email.to_lowercase();
+            if lower_name.contains("[bot]") || lower_name.contains("dependabot") || 
+               lower_email.contains("[bot]") || lower_email.contains("github-actions") {
+                continue;
+            }
+        }
+        
         let time = commit.time();
         let offset = chrono::FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
         let date = offset.timestamp_opt(time.seconds(), 0).unwrap();

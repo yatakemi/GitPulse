@@ -522,12 +522,21 @@ pub const HTML_TEMPLATE: &str = r#"
                 <canvas id="scatterChart"></canvas>
             </div>
             <!-- Distribution Analysis -->
-            <div class="chart-box full-width" id="distBox" style="display: none;">
-                <div class="chart-title">
-                    <span data-i18n="chart_distribution">Metric Distribution</span>
-                    <span class="info-icon" data-tooltip="Shows the frequency of different Lead Time and Response Time values. Helps identify typical vs outlier performance.">i</span>
+            <div class="charts-grid" id="distBox" style="display: none;">
+                <div class="chart-box">
+                    <div class="chart-title">
+                        <span data-i18n="chart_res_dist">Response Time Distribution</span>
+                        <span class="info-icon" data-tooltip="Frequency of Response Times (in hours). Most values should be on the left (low waiting time).">i</span>
+                    </div>
+                    <canvas id="resDistChart"></canvas>
                 </div>
-                <canvas id="distChart"></canvas>
+                <div class="chart-box">
+                    <div class="chart-title">
+                        <span data-i18n="chart_lead_dist">Lead Time Distribution</span>
+                        <span class="info-icon" data-tooltip="Frequency of Branch Lead Times (in days). Identifies consistency of the development cycle.">i</span>
+                    </div>
+                    <canvas id="leadDistChart"></canvas>
+                </div>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
@@ -742,6 +751,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 label_rework_rate_label: "Rework Rate",
                 chart_reciprocity: "Review Reciprocity Matrix",
                 chart_scatter: "PR Size vs Lead Time",
+                chart_res_dist: "Response Time Distribution",
+                chart_lead_dist: "Lead Time Distribution",
                 chart_file_type_share: "File Type Share",
                 title_file_type_list: "File Type Details",
                 title_impact_assessment: "Initiative Impact Assessment",
@@ -884,6 +895,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 header_files: "ファイル",
                 chart_reciprocity: "レビュー相互関係マトリクス",
                 chart_scatter: "PRサイズ vs リードタイム",
+                chart_res_dist: "反応時間の分布",
+                chart_lead_dist: "リードタイムの分布",
                 chart_file_type_share: "ファイル種別シェア",
                 title_file_type_list: "ファイル種別詳細",
                 title_impact_assessment: "施策インパクト評価",
@@ -1001,11 +1014,12 @@ pub const HTML_TEMPLATE: &str = r#"
         const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
         const reciprocityCtx = document.getElementById('reciprocityChart').getContext('2d');
         const scatterCtx = document.getElementById('scatterChart').getContext('2d');
-        const distCtx = document.getElementById('distChart').getContext('2d');
+        const resDistCtx = document.getElementById('resDistChart').getContext('2d');
+        const leadDistCtx = document.getElementById('leadDistChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, distChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -1944,7 +1958,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 if (distBox) distBox.style.display = 'none';
                 return;
             }
-            if (distBox) distBox.style.display = 'block';
+            if (distBox) distBox.style.display = 'grid'; // Note: grid instead of block
 
             function createHistogram(data, bucketSize) {
                 const bins = {};
@@ -1955,37 +1969,48 @@ pub const HTML_TEMPLATE: &str = r#"
                 return bins;
             }
 
-            const resBins = createHistogram(resTimes, 4); // 4-hour buckets
-            const leadBins = createHistogram(leadTimes, 1); // 1-day buckets
+            const resBins = createHistogram(resTimes, 4); 
+            const resLabels = Object.keys(resBins).sort((a,b) => a-b);
 
-            const labels = [...new Set([...Object.keys(resBins), ...Object.keys(leadBins)])].sort((a,b) => a-b);
-
-            if (distChart) distChart.destroy();
-            distChart = new Chart(distCtx, {
+            if (resDistChart) resDistChart.destroy();
+            resDistChart = new Chart(resDistCtx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Response Time (Frequency)',
-                            data: labels.map(l => resBins[l] || 0),
-                            backgroundColor: 'rgba(230, 126, 34, 0.6)',
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Lead Time (Frequency)',
-                            data: labels.map(l => leadBins[l] || 0),
-                            backgroundColor: 'rgba(52, 152, 219, 0.6)',
-                            yAxisID: 'y'
-                        }
-                    ]
+                    labels: resLabels,
+                    datasets: [{
+                        label: t('chart_res_dist'),
+                        data: resLabels.map(l => resBins[l]),
+                        backgroundColor: 'rgba(230, 126, 34, 0.6)'
+                    }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'Value (Hours for Response, Days for Lead)' } },
-                        y: { beginAtZero: true, title: { display: true, text: 'Number of PRs' } }
+                        x: { title: { display: true, text: 'Hours' } },
+                        y: { beginAtZero: true, title: { display: true, text: t('label_mod_count') } }
+                    }
+                }
+            });
+
+            const leadBins = createHistogram(leadTimes, 1);
+            const leadLabels = Object.keys(leadBins).sort((a,b) => a-b);
+
+            if (leadDistChart) leadDistChart.destroy();
+            leadDistChart = new Chart(leadDistCtx, {
+                type: 'bar',
+                data: {
+                    labels: leadLabels,
+                    datasets: [{
+                        label: t('chart_lead_dist'),
+                        data: leadLabels.map(l => leadBins[l]),
+                        backgroundColor: 'rgba(52, 152, 219, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Days' } },
+                        y: { beginAtZero: true, title: { display: true, text: t('label_mod_count') } }
                     }
                 }
             });
