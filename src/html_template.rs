@@ -450,13 +450,6 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    <span data-i18n="chart_hotspots">File Hotspots (Top 20 Modified)</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_hotspots" data-tooltip="Most frequently changed files.">i</span>
-                </div>
-                <canvas id="hotspotsChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
                     <span data-i18n="chart_duration">Est. Daily Work Duration</span>
                     <span class="info-icon" data-i18n-tooltip="tooltip_duration" data-tooltip="Time between first and last commit of the day.">i</span>
                 </div>
@@ -612,7 +605,6 @@ pub const HTML_TEMPLATE: &str = r#"
                 chart_dow: "Day of Week Activity",
                 chart_heatmap: "Activity Heatmap (Hour vs Day)",
                 chart_size: "Commit Size Distribution",
-                chart_hotspots: "File Hotspots (Top 20 Modified)",
                 chart_duration: "Est. Daily Work Duration",
                 chart_health: "Team Health Trends",
                 tooltip_timeline: "Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.",
@@ -620,10 +612,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_dow: "Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time, unhealthy work habits, or upcoming release pressure.",
                 tooltip_heatmap: "Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk. Inconsistent heatmaps might indicate lack of overlapping hours for collaboration.",
                 tooltip_size: "Breakdown of commit sizes. XS: <10, S: 10-50, M: 50-200, L: 200-500, XL: >500 lines. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review and more likely to contain bugs.",
-                tooltip_hotspots: "Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring or better tests.",
                 tooltip_duration: "Time between first and last commit of the day. NOTE: Not actual work hours, but indicates the span of activity. Long spans (>8h) consistently may suggest burnout risk.",
                 tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring. Calculated as 2 * min(added, deleted) / total changes. Purple: Avg Duration. Rising trend in both often indicates 'Technical Debt' or 'Crunch Time'.",
-                tooltip_ownership: "Shows who contributes to which files. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience and knowledge sharing.",
+                tooltip_ownership: "Shows who contributes to which files. The top 15 most frequently modified files (hotspots) are shown. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring or better tests. Files with only one contributor are a 'Bus Factor' risk. Balanced ownership improves team resilience and knowledge sharing.",
                 tooltip_leadtime: "Time span of merged branches (from first commit to merge). Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity and risk.",
                 tooltip_ctxswitch: "Number of distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work productivity.",
                 tooltip_forecast: "Predicts future output based on the last 4 weeks of velocity. The dotted line shows the projected trend. Change the 'Target Goal' to see an estimated completion date.",
@@ -775,7 +766,6 @@ pub const HTML_TEMPLATE: &str = r#"
                 chart_dow: "曜日別アクティビティ",
                 chart_heatmap: "時間帯ヒートマップ",
                 chart_size: "コミットサイズ分布",
-                chart_hotspots: "変更頻度ランキング",
                 chart_duration: "推定稼働時間",
                 chart_health: "チーム健全性トレンド",
                 tooltip_timeline: "活動の推移を表示します。スパイク（リリース前）やギャップ（停滞）を確認できます。活動が一定であることが理想的です。削除行のスパイクはコードの整理やリファクタリングを示唆します。",
@@ -783,10 +773,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_dow: "チームの週ごとのリズムです。多くのチームは火〜木にピークを迎えます。週末の活動が多い場合は、デスマーチや不健全な働き方、リリース前のプレッシャーを示唆します。",
                 tooltip_heatmap: "コアタイムを特定します。深夜など通常の時間外にクラスターがある場合は、残業やバーンアウトのリスクを示唆します。疎らなヒートマップは非同期作業が多く協力時間が不足している可能性があります。",
                 tooltip_size: "コミットサイズの内訳です。XS: 10行未満, S: 10-50行, M: 50-200行, L: 200-500行, XL: 500行以上。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唆します。",
-                tooltip_hotspots: "最も頻繁に変更されるファイルです。これらはアーキテクチャ上のボトルネック、「神クラス」、またはリファクタリングやテスト強化が必要な不安定なモジュールである可能性があります。",
                 tooltip_duration: "その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。",
                 tooltip_health: "赤: 手戻り率（Volatility）。高い＝不安定/リファクタリング中。算出式: 2 * min(追加, 削除) / 総変更行数。紫: 平均活動幅。両方が上昇傾向にある場合は、技術負債やデスマーチの兆候である可能性が高いです。",
-                tooltip_ownership: "誰がどのファイルに貢献しているかを示します。1人だけが触っているファイルは『バス係数』のリスクです。バランスの良いオーナーシップは知識共有とチームの回復力を高めます。",
+                tooltip_ownership: "どのファイルに誰が貢献しているかを示します。変更頻度が高い上位15ファイル（ホットスポット）を表示しています。これらはアーキテクチャ上のボトルネック、『神クラス』、またはテスト強化が必要な不安定なモジュールである可能性があります。1人だけが触っているファイルは『バス係数』のリスクがあります。バランスの良いオーナーシップはチームの回復力と知識共有を高めます。",
                 tooltip_leadtime: "マージされたブランチの寿命（最初のコミット〜マージ）。短いリードタイムは迅速なデリバリーを、長いリードタイムはマージの複雑化とリスク増大を示します。",
                 tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。",
                 tooltip_forecast: "過去4週間のベロシティに基づき将来の出力を予測します。点線は予測トレンドです。『目標コミット数』を変更すると、達成予測日が表示されます。",
@@ -975,7 +964,6 @@ pub const HTML_TEMPLATE: &str = r#"
         const dowCtx = document.getElementById('dayOfWeekChart').getContext('2d');
         const heatmapCtx = document.getElementById('heatmapChart').getContext('2d');
         const sizeCtx = document.getElementById('sizeDistChart').getContext('2d');
-        const hotCtx = document.getElementById('hotspotsChart').getContext('2d');
         const durCtx = document.getElementById('workDurationChart').getContext('2d');
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
@@ -987,7 +975,7 @@ pub const HTML_TEMPLATE: &str = r#"
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, distChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, distChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -1106,7 +1094,6 @@ pub const HTML_TEMPLATE: &str = r#"
             updateDayOfWeekChart(filteredData, metric);
             updateHeatmapChart(filteredData, metric);
             updateSizeDistChart(filteredData);
-            updateHotspotsChart(filteredData, startDate, endDate);
             updateWorkDurationChart(filteredData);
             updateHealthTrendChart(filteredData, startDate, endDate);
             updateOwnershipChart(filteredData, startDate, endDate);
@@ -1625,19 +1612,6 @@ pub const HTML_TEMPLATE: &str = r#"
                         }
                     }
                 }
-            });
-        }
-
-        function updateHotspotsChart(filteredData, startDate, endDate) {
-            const filteredAuthors = new Set(filteredData.map(d => d.author));
-            const fileCounts = {};
-            dashboardData.file_stats.forEach(fs => { if (filteredAuthors.has(fs.author)) { const fName = filePaths[fs.file_idx] || fs.file_idx; fileCounts[fName] = (fileCounts[fName] || 0) + fs.count; } });
-            const topFiles = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]).slice(0, 15).reverse();
-            if (hotChart) hotChart.destroy();
-            hotChart = new Chart(hotCtx, {
-                type: 'bar',
-                data: { labels: topFiles.map(f => f[0]), datasets: [{ data: topFiles.map(f => f[1]), backgroundColor: '#e67e2299' }] },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
             });
         }
 
