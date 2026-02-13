@@ -89,4 +89,6 @@ pub struct CommitStats {
     pub message: String,
     #[serde(default)]
     pub files: Vec<usize>, // Indices into file_paths
+    #[serde(default)]
+    pub lead_time_days: Option<u32>,
 }

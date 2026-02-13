@@ -159,10 +159,35 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let date = offset.timestamp_opt(time.seconds(), 0).unwrap();
 
         let commit_message_raw = commit.message().unwrap_or("");
+        let commit_message = commit_message_raw.lines().next().unwrap_or("").to_string();
         
         // Skip merges from base branches (sync merges)
         if is_merge && is_sync_merge(commit_message_raw, &config.base_branches) {
             continue;
+        }
+
+        let mut lead_time_days = None;
+        if is_merge && commit.parent_count() >= 2 {
+            // Calculate lead time: from first commit in the merged branch to this merge commit
+            let mut revwalk = repo.revwalk()?;
+            revwalk.push(commit.parent_id(1)?)?; // The branch being merged
+            revwalk.hide(commit.parent_id(0)?)?; // Hide commits already in the target branch
+            
+            let mut oldest_timestamp = commit.time().seconds();
+            for oid_res in revwalk {
+                if let Ok(oid) = oid_res {
+                    if let Ok(c) = repo.find_commit(oid) {
+                        let t = c.time().seconds();
+                        if t < oldest_timestamp {
+                            oldest_timestamp = t;
+                        }
+                    }
+                }
+            }
+            
+            let diff_sec = commit.time().seconds() - oldest_timestamp;
+            let days = (diff_sec / (24 * 3600)) as u32;
+            lead_time_days = Some(days.max(1)); // Min 1 day
         }
 
         let (added, deleted, commit_files) = if commit.parent_count() == 0 {
@@ -182,8 +207,6 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             process_diff(&repo, &diff, config, &mut file_map, &mut file_paths)?
         };
 
-        let commit_message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
-
         stats_list.push(CommitStats {
             hash: oid.to_string(),
             author: author_name,
@@ -194,6 +217,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             is_merge,
             message: commit_message,
             files: commit_files,
+            lead_time_days,
         });
     }
 

@@ -270,26 +270,41 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
 
         // Merge events
         if commit.is_merge {
-            if let Some(branch_match) = regex::Regex::new(r"(?i)Merge\s+(?:branch|pull request)\s+'?([^'\s]+)'?")
+            // Priority 1: Use pre-calculated lead time if available
+            // Priority 2: Use regex to find branch name
+            let branch_name = if let Some(branch_match) = regex::Regex::new(r"(?i)(?:Merge\s+(?:branch|pull request)\s+'?([^'\s]+)'?|#(\d+))")
                 .ok()
                 .and_then(|re| re.captures(&commit.message))
             {
-                let branch_name = branch_match.get(1).map_or("", |m| m.as_str()).to_string();
-                
-                // Find nearest predecessor non-merge commit (simple approximation)
+                if let Some(m) = branch_match.get(1) {
+                    m.as_str().to_string()
+                } else if let Some(m) = branch_match.get(2) {
+                    format!("PR #{}", m.as_str())
+                } else {
+                    "Unknown Branch".to_string()
+                }
+            } else {
+                format!("Merge {}", &commit.hash[..7])
+            };
+
+            let days = commit.lead_time_days.unwrap_or_else(|| {
+                // Fallback to simple approximation if for some reason it's missing
                 if let Some(pos) = non_merge_commits.iter().rposition(|c| c.date < commit.date) {
                     let pred = &non_merge_commits[pos];
                     let duration = commit.date.signed_duration_since(pred.date);
-                    let days = duration.num_days().max(1) as u32;
-                    if days <= 90 {
-                        merge_events.push(MergeEvent {
-                            branch: branch_name,
-                            author: commit.author.clone(),
-                            days,
-                            date: date_str,
-                        });
-                    }
+                    duration.num_days().max(1) as u32
+                } else {
+                    1
                 }
+            });
+
+            if days <= 120 { // Increase limit slightly to 120 days
+                merge_events.push(MergeEvent {
+                    branch: branch_name,
+                    author: commit.author.clone(),
+                    days,
+                    date: date_str,
+                });
             }
         }
     }
