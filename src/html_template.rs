@@ -764,7 +764,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 desc_throughput: "Measures delivery volume. Formula: [Merged PRs] / [Weeks in period]. Higher means the team is completing more tasks.",
                 desc_p90: "Worst-case delivery speed. Formula: The threshold under which 90% of PRs are merged. Lowering this means fewer PRs are 'stuck'.",
                 desc_stability: "Measures predictability. Formula: Standard Deviation of Lead Time. Lower means delivery is consistent regardless of author or task.",
-                desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested'] / [Total PRs]. Lower means better consensus before coding."
+                desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -906,12 +906,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 desc_throughput: "チームのデリバリー量を測定。算出式: [期間内のマージPR総数] / [期間の週数]。数値が高いほど、より多くの成果物を完成させていることを示します。",
                 desc_p90: "ワーストケースのデリバリー速度。PR全体の90%が含まれる範囲の日数を示します。この数値が改善（低下）しているほど、『放置されるPR』や『異常に難航するタスク』が減っていることを意味します。",
                 desc_stability: "開発サイクルの予測可能性を測定。算出式: リードタイムの標準偏差。数値が低いほど、タスクの難易度や担当者に左右されず、安定してデリバリーされていることを示します。",
-                desc_rework: "実装前の合意形成の質を測定。算出式: [修正依頼が発生したPR数] / [PR総数]。数値が低いほど、仕様不備による『作り直し』が少ないことを示唆します。",
-                desc_rework_prs: "修正依頼（Changes Requested）が発生したPRの割合",
+                desc_rework: "実装前の合意形成の質を測定。算出式: [修正依頼が発生、またはレビュー往復が2回以上あったPR数] / [PR総数]。GitHub公式の『Request Changes』を使わない、コメントベースの修正指示も『実質的な手戻り』として捕捉します。",
+                desc_rework_prs: "修正依頼、または2回以上のレビューサイクルを要したPRの割合",
                 desc_avg_comments: "1PRあたりの平均コメント数（議論の活発さ・レビューの丁寧さ）",
                 desc_first_reaction: "人間による最初のレビュー依頼から、最初の反応があるまでの平均経過時間",
                 desc_review_cycles: "1PRあたりのレビュー往復回数。算出式: PRごとにレビューがあった延べ日数（同日内は1回）を合計し平均化。",
-                tooltip_rework_rate: "修正依頼率。算出式: [Changes Requestedを受けたPR] / [PR総数]。実装方針のズレや要件定義の不備を早期発見できているかを示します。",
+                tooltip_rework_rate: "実質修正依頼率。算出式: [Changes Requested、またはレビュー往復が2回以上のPR] / [PR総数]。公式機能を使わないコメントベースの修正指示も手戻りとして捕捉する、より正確な指標です。",
                 tooltip_review_depth: "レビュー密度。算出式: [コメント総数] / [PR総数]。議論の質を測定します。極端に低い場合はレビューが形骸化しているリスクがあります。",
                 tooltip_response_time: "平均反応時間。算出式: [最初の人間によるレビューまたは承認] - [最初の人間によるレビュー依頼時刻]。開発者の『待ち時間』を測定します。",
                 tooltip_iterations: "平均イテレーション。算出式: 1つのPRがマージされるまでに発生した『レビュー→修正』の往復回数（同日の活動は1回と集計）。設計の複雑さやコミュニケーション効率を示します。",
@@ -1373,37 +1373,14 @@ pub const HTML_TEMPLATE: &str = r#"
             filteredPRs.forEach(pr => {
                 const author = normalizeAuthor(pr.author);
                 
-                // Rework Rate
-                const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user));
-                if (hasRequestChanges) reworkPRs.push(pr);
-
-                // Review Depth
-                allComments.push(pr.total_comments || 0);
-
-                // Response Time (More accurate logic)
-                // Start: first human assignment, Fallback: creation date
-                const startTime = pr.first_assigned_at ? new Date(pr.first_assigned_at) : new Date(pr.created_at);
-                
-                if (pr.reviews && pr.reviews.length > 0) {
-                    const humanReviews = pr.reviews
-                        .filter(r => !isBot(r.user))
-                        .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
-                    
-                    if (humanReviews.length > 0) {
-                        const firstResponse = humanReviews[0];
-                        const diff = (new Date(firstResponse.submitted_at) - startTime) / (1000 * 60 * 60);
-                        if (diff > 0) {
-                            responseTimes.push(diff);
-                        } else if (diff > -1) { 
-                            // If review was almost immediate after assignment, diff might be very small or slightly negative due to clock skew
-                            responseTimes.push(0.1); 
-                        }
-                    }
-                }
-
                 // Iterations
-                const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
-                iterationCounts.push(Math.max(1, distinctReviewCycles));
+                const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED' && !isBot(r.user)).map(r => r.submitted_at.split('T')[0])).size : 0;
+                const iterations = Math.max(1, distinctReviewCycles);
+                iterationCounts.push(iterations);
+
+                // Rework Rate (Adjusted: Changes Requested OR >1 Iteration)
+                const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user));
+                if (hasRequestChanges || iterations > 1) reworkPRs.push(pr);
 
                 // Lead Time
                 if (pr.merged_at) {
@@ -2191,7 +2168,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 
                 const throughput = mergedPRs.length / (periodWeeks || 1);
 
-                const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user))).length;
+                const reworkCount = prs.filter(pr => {
+                    const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user));
+                    const cycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED' && !isBot(r.user)).map(r => r.submitted_at.split('T')[0])).size : 0;
+                    return hasRequestChanges || cycles > 1;
+                }).length;
                 const reworkRate = (reworkCount / (prs.length || 1)) * 100;
 
                 const resTimeValues = prs.filter(pr => pr.reviews && pr.reviews.length > 0).map(pr => {
