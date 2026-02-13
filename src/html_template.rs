@@ -1065,15 +1065,22 @@ pub const HTML_TEMPLATE: &str = r#"
                 const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
                 
                 const commitExts = new Set();
-                if (c.files) {
+                if (c.files && Array.isArray(c.files)) {
                     c.files.forEach(fidx => {
                         const path = filePaths[fidx];
-                        if (path) {
-                            const parts = path.split('.');
-                            const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'no-ext';
-                            if (ext.length < 8 && !path.endsWith('/')) {
-                                commitExts.add(ext);
-                            } else if (!path.includes('.')) {
+                        if (path && typeof path === 'string') {
+                            const parts = path.split('/');
+                            const filename = parts.pop() || "";
+                            if (filename.includes('.')) {
+                                const extParts = filename.split('.');
+                                const ext = extParts.pop().toLowerCase();
+                                // Handle cases like ".gitignore" where first part is empty
+                                if (ext && ext.length < 8) {
+                                    commitExts.add(ext);
+                                } else {
+                                    commitExts.add('no-ext');
+                                }
+                            } else {
                                 commitExts.add('no-ext');
                             }
                         }
