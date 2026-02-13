@@ -49,6 +49,18 @@ else
     exit 1
 fi
 
+# JavaScript Syntax Check
+echo "🔍 Validating JavaScript syntax..."
+if command -v node > /dev/null; then
+    # Create a temporary version of the JS without Tera templates for syntax checking
+    sed 's/{{.*}}/null/g' ../src/report.js > ../src/report.tmp.js
+    node --check ../src/report.tmp.js
+    rm ../src/report.tmp.js
+    echo "SUCCESS: JavaScript syntax is valid"
+else
+    echo "SKIP: node not found, skipping JS syntax check"
+fi
+
 # JavaScript Integrity Check
 echo "🔍 Checking JavaScript integrity in report.html..."
 CHART_CONTEXTS=$(grep -oE "new Chart\([^,)]+" "../report.html" | cut -d'(' -f2)
