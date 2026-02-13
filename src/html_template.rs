@@ -38,7 +38,9 @@ pub const HTML_TEMPLATE: &str = concat!(
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-bottom: 30px; }
         .chart-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 400px; position: relative; }
         .chart-box.full-width { grid-column: 1 / -1; height: 500px; }
-        .chart-title { position: absolute; top: 15px; left: 20px; font-size: 16px; font-weight: 600; color: #34495e; z-index: 10; display: flex; align-items: center; gap: 8px; }
+        .chart-title { position: absolute; top: 15px; left: 20px; font-size: 16px; font-weight: 600; color: #34495e; z-index: 10; display: flex; align-items: center; gap: 8px; width: calc(100% - 40px); }
+        .chart-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+        .chart-controls select { padding: 4px 8px; font-size: 12px; height: auto; }
         
         /* Tooltip Styles */
         .info-icon {
@@ -207,13 +209,6 @@ pub const HTML_TEMPLATE: &str = concat!(
                 </select>
             </div>
             
-            <div class="control-group">
-                <label data-i18n="chart_type">Chart:</label>
-                <select id="chartTypeSelect" onchange="updateDashboard()">
-                    <option value="line" data-i18n="chart_line">Line Chart</option>
-                    <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
-                </select>
-            </div>
             <div class="control-group">
                 <label data-i18n="start">Start:</label>
                 <input type="date" id="startDate" onchange="updateDashboard()">
@@ -421,6 +416,12 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <div class="chart-title">
                     <span data-i18n="chart_timeline">Timeline</span> 
                     <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
+                    <div class="chart-controls">
+                        <select id="chartTypeSelect" onchange="updateDashboard()">
+                            <option value="line" data-i18n="chart_line">Line Chart</option>
+                            <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
+                        </select>
+                    </div>
                 </div>
                 <canvas id="productivityChart"></canvas>
             </div>
@@ -547,20 +548,22 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <canvas id="scatterChart"></canvas>
             </div>
             <!-- Distribution Analysis -->
-            <div class="charts-grid" id="distBox" style="display: none;">
-                <div class="chart-box">
-                    <div class="chart-title">
-                        <span data-i18n="chart_res_dist">Response Time Distribution</span>
-                        <span class="info-icon" data-tooltip="Frequency of Response Times (in hours). Most values should be on the left (low waiting time).">i</span>
+            <div id="distBox" style="display: none; margin-bottom: 25px;">
+                <div class="charts-grid" style="margin-bottom: 0;">
+                    <div class="chart-box">
+                        <div class="chart-title">
+                            <span data-i18n="chart_res_dist">Response Time Distribution</span>
+                            <span class="info-icon" data-tooltip="Frequency of Response Times (in hours). Most values should be on the left (low waiting time).">i</span>
+                        </div>
+                        <canvas id="resDistChart"></canvas>
                     </div>
-                    <canvas id="resDistChart"></canvas>
-                </div>
-                <div class="chart-box">
-                    <div class="chart-title">
-                        <span data-i18n="chart_lead_dist">Lead Time Distribution</span>
-                        <span class="info-icon" data-tooltip="Frequency of Branch Lead Times (in days). Identifies consistency of the development cycle.">i</span>
+                    <div class="chart-box">
+                        <div class="chart-title">
+                            <span data-i18n="chart_lead_dist">Lead Time Distribution</span>
+                            <span class="info-icon" data-tooltip="Frequency of Branch Lead Times (in days). Identifies consistency of the development cycle.">i</span>
+                        </div>
+                        <canvas id="leadDistChart"></canvas>
                     </div>
-                    <canvas id="leadDistChart"></canvas>
                 </div>
             </div>
             <div class="chart-box full-width">
