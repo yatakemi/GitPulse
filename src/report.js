@@ -1046,10 +1046,18 @@
 
         function updatePieChart(filteredData, metric) {
             const userTotals = {};
-            filteredData.forEach(d => { userTotals[d.author] = (userTotals[d.author] || 0) + (d[metric] || 0); });
+            filteredData.forEach(d => {
+                const val = Number(d[metric]) || 0;
+                userTotals[d.author] = (userTotals[d.author] || 0) + val;
+            });
             
-            // Sort users by total values in descending order
-            const sortedEntries = Object.entries(userTotals).sort((a, b) => b[1] - a[1]);
+            // Sort users by total values in descending order, then by name for ties
+            const sortedEntries = Object.entries(userTotals)
+                .sort((a, b) => {
+                    if (b[1] !== a[1]) return b[1] - a[1];
+                    return a[0].localeCompare(b[0]);
+                });
+            
             const labels = sortedEntries.map(e => e[0]);
             const values = sortedEntries.map(e => e[1]);
             
