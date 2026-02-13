@@ -581,7 +581,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_share: "Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev). A highly skewed chart suggests high risk if the top contributor is unavailable.",
                 tooltip_dow: "Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time, unhealthy work habits, or upcoming release pressure.",
                 tooltip_heatmap: "Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk. Inconsistent heatmaps might indicate lack of overlapping hours for collaboration.",
-                tooltip_size: "Breakdown of commit sizes. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review and more likely to contain bugs.",
+                tooltip_size: "Breakdown of commit sizes. XS: <10, S: 10-50, M: 50-200, L: 200-500, XL: >500 lines. 'XS'/'S' are ideal (atomic commits). Too many 'XL' suggests large, risky changes that are hard to review and more likely to contain bugs.",
                 tooltip_hotspots: "Most frequently changed files. These are potential architectural bottlenecks, 'God Classes', or unstable modules needing refactoring or better tests.",
                 tooltip_duration: "Time between first and last commit of the day. NOTE: Not actual work hours, but indicates the span of activity. Long spans (>8h) consistently may suggest burnout risk.",
                 tooltip_health: "Red: Churn Rate (Rework/Volatility). High = Unstable/Refactoring. Calculated as 2 * min(added, deleted) / total changes. Purple: Avg Duration. Rising trend in both often indicates 'Technical Debt' or 'Crunch Time'.",
@@ -732,7 +732,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 tooltip_share: "貢献度の分布です。「バス係数」（特定の開発者への依存度）を特定します。極端に偏っている場合は、その人が不在の際のリスクが高いことを示します。",
                 tooltip_dow: "チームの週ごとのリズムです。多くのチームは火〜木にピークを迎えます。週末の活動が多い場合は、デスマーチや不健全な働き方、リリース前のプレッシャーを示唆します。",
                 tooltip_heatmap: "コアタイムを特定します。深夜など通常の時間外にクラスターがある場合は、残業やバーンアウトのリスクを示唆します。疎らなヒートマップは非同期作業が多く協力時間が不足している可能性があります。",
-                tooltip_size: "コミットサイズの内訳です。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唆します。",
+                tooltip_size: "コミットサイズの内訳です。XS: 10行未満, S: 10-50行, M: 50-200行, L: 200-500行, XL: 500行以上。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唆します。",
                 tooltip_hotspots: "最も頻繁に変更されるファイルです。これらはアーキテクチャ上のボトルネック、「神クラス」、またはリファクタリングやテスト強化が必要な不安定なモジュールである可能性があります。",
                 tooltip_duration: "その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。",
                 tooltip_health: "赤: 手戻り率（Volatility）。高い＝不安定/リファクタリング中。算出式: 2 * min(追加, 削除) / 総変更行数。紫: 平均活動幅。両方が上昇傾向にある場合は、技術負債やデスマーチの兆候である可能性が高いです。",
@@ -1509,8 +1509,23 @@ pub const HTML_TEMPLATE: &str = r#"
             if (sizeChart) sizeChart.destroy();
             sizeChart = new Chart(sizeCtx, {
                 type: 'bar',
-                data: { labels: ['XS', 'S', 'M', 'L', 'XL'], datasets: [{ data: counts, backgroundColor: '#f1c40f99' }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                data: { 
+                    labels: ['XS (<10)', 'S (10-50)', 'M (50-200)', 'L (200-500)', 'XL (>500)'], 
+                    datasets: [{ data: counts, backgroundColor: '#f1c40f99' }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: t('label_commit_count') }
+                        }
+                    }
+                }
             });
         }
 
