@@ -87,16 +87,15 @@ Unify multiple author names/emails into a single user.
 ```toml
 [alias]
 # Format: "email_or_name" = "Canonical Name"
-
-# Merge duplicate users
 "alice.personal@gmail.com" = "Alice"
-"Bob_Work" = "Bob"
 
-# Fix typos
-"Charly" = "Charlie"
+# Base branches for filtering noise (NEW!)
+# Merges FROM these branches INTO feature branches will be ignored
+# to prevent noise from upstream changes.
+base_branches = ["main", "master", "develop"]
 ```
 
-**Note:** GitHub noreply emails (e.g., `123456+username@users.noreply.github.com`) are **automatically merged** to `username` by default.
+**Note:** GitHub noreply emails are **automatically merged** to `username` by default.
 
 ### Initiative Tracking (Events)
 

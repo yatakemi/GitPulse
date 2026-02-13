@@ -62,6 +62,22 @@ fn process_diff(_repo: &Repository, diff: &git2::Diff, config: &crate::config::C
     Ok((added, deleted, commit_files.into_iter().collect()))
 }
 
+fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
+    let first_line = message.lines().next().unwrap_or("").to_lowercase();
+    for branch in base_branches {
+        let b = branch.to_lowercase();
+        // Common git merge messages
+        if first_line.contains(&format!("merge branch '{}'", b)) ||
+           first_line.contains(&format!("merge remote-tracking branch 'origin/{}'", b)) ||
+           first_line.contains(&format!("merge pull request #", )) && first_line.contains(&format!("from {}", b)) ||
+           first_line.contains(&format!("merge branch '{}' into", b))
+        {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool, include_github: bool, no_cache: bool) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
@@ -141,6 +157,13 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let time = commit.time();
         let offset = chrono::FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
         let date = offset.timestamp_opt(time.seconds(), 0).unwrap();
+
+        let commit_message_raw = commit.message().unwrap_or("");
+        
+        // Skip merges from base branches (sync merges)
+        if is_merge && is_sync_merge(commit_message_raw, &config.base_branches) {
+            continue;
+        }
 
         let (added, deleted, commit_files) = if commit.parent_count() == 0 {
             // Initial commit

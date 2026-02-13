@@ -12,6 +12,12 @@ pub struct Config {
     pub exclude: Vec<String>,
     #[serde(default)]
     pub events: Vec<EventConfig>,
+    #[serde(default = "default_base_branches")]
+    pub base_branches: Vec<String>,
+}
+
+fn default_base_branches() -> Vec<String> {
+    vec!["main".to_string(), "master".to_string(), "develop".to_string()]
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
