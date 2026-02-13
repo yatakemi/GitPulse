@@ -479,9 +479,12 @@ pub const HTML_TEMPLATE: &str = r#"
             <div class="chart-box full-width">
                 <div class="chart-title">
                     <span data-i18n="chart_leadtime">Branch Lead Time</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_leadtime" data-tooltip="Time span of merged branches.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_leadtime" data-tooltip="Time span of merged branches (from the very first commit in the branch to the merge commit). Sync merges from base branches (main/develop) are excluded.">i</span>
                 </div>
-                <canvas id="leadTimeChart"></canvas>
+                <canvas id="leadTimeChart" style="margin-bottom: 40px;"></canvas>
+                <div id="leadTimeStats" style="position: absolute; bottom: 15px; left: 20px; right: 20px; display: flex; justify-content: center; gap: 30px; font-size: 13px; color: #7f8c8d; border-top: 1px solid #f5f5f5; padding-top: 10px;">
+                    <!-- Populated by JS -->
+                </div>
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
@@ -622,7 +625,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_isolated_title: "Isolated Files",
                 insight_isolated_desc: "{value} file(s) are only touched by one person.",
                 chart_leadtime: "Branch Lead Time",
-                tooltip_leadtime: "Time span of merged branches.",
+                tooltip_leadtime: "Time span of merged branches (from the very first commit in the branch to the merge commit). Sync merges from base branches (main/develop) are excluded to ensure accuracy. Shorter lead times indicate faster delivery. Long-lived branches increase merge complexity.",
+                label_leadtime_avg: "Average",
+                label_leadtime_median: "Median",
+                label_leadtime_p90: "P90 (Worst)",
                 label_days: "days",
                 label_branch: "Branch",
                 label_leadtime_days: "Lead Time (Days)",
@@ -772,7 +778,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_isolated_title: "📋 孤立ファイル",
                 insight_isolated_desc: "{value}個のファイルが1人のみによって変更されています。",
                 chart_leadtime: "ブランチリードタイム",
-                tooltip_leadtime: "マージされたブランチの寿命。",
+                tooltip_leadtime: "マージされたブランチの寿命（ブランチ独自の最初のコミットからマージまで）。main/develop等のベースブランチからの同期目的のマージは除外されます。短いリードタイムは迅速なデリバリーを、長いリードタイムはマージの複雑化とリスク増大を示します。",
+                label_leadtime_avg: "平均",
+                label_leadtime_median: "中央値",
+                label_leadtime_p90: "90%点 (最悪)",
                 label_days: "日",
                 label_branch: "ブランチ",
                 label_leadtime_days: "リードタイム (日)",
@@ -1642,7 +1651,9 @@ pub const HTML_TEMPLATE: &str = r#"
         }
 
         function updateLeadTimeChart(filteredData, startDate, endDate) {
-            const branches = dashboardData.merge_events.filter(me => me.date >= startDate && me.date <= endDate).slice(0, 15).reverse();
+            const allFilteredMerges = dashboardData.merge_events.filter(me => me.date >= startDate && me.date <= endDate);
+            const branches = allFilteredMerges.slice(0, 15).reverse();
+            
             if (leadChart) leadChart.destroy();
             leadChart = new Chart(leadCtx, {
                 type: 'bar',
@@ -1666,6 +1677,23 @@ pub const HTML_TEMPLATE: &str = r#"
                     }
                 }
             });
+
+            // Update stats summary
+            const statsContainer = document.getElementById('leadTimeStats');
+            if (allFilteredMerges.length > 0) {
+                const days = allFilteredMerges.map(m => m.days).sort((a, b) => a - b);
+                const avg = days.reduce((a, b) => a + b, 0) / days.length;
+                const median = days[Math.floor(days.length * 0.5)];
+                const p90 = days[Math.floor(days.length * 0.9)];
+                
+                statsContainer.innerHTML = `
+                    <span><strong>${t('label_leadtime_avg')}:</strong> ${avg.toFixed(1)}${t('label_days')}</span>
+                    <span><strong>${t('label_leadtime_median')}:</strong> ${median}${t('label_days')}</span>
+                    <span><strong>${t('label_leadtime_p90')}:</strong> ${p90}${t('label_days')}</span>
+                `;
+            } else {
+                statsContainer.innerHTML = `<span>No merge data for this period</span>`;
+            }
         }
 
         function updateContextSwitchChart(filteredData, startDate, endDate) {
