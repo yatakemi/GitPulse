@@ -1047,8 +1047,12 @@
         function updatePieChart(filteredData, metric) {
             const userTotals = {};
             filteredData.forEach(d => { userTotals[d.author] = (userTotals[d.author] || 0) + (d[metric] || 0); });
-            const labels = Object.keys(userTotals);
-            const values = Object.values(userTotals);
+            
+            // Sort users by total values in descending order
+            const sortedEntries = Object.entries(userTotals).sort((a, b) => b[1] - a[1]);
+            const labels = sortedEntries.map(e => e[0]);
+            const values = sortedEntries.map(e => e[1]);
+            
             if (pieChart) pieChart.destroy();
             pieChart = new Chart(pieCtx, {
                 type: 'doughnut',
