@@ -5,7 +5,7 @@ pub const HTML_TEMPLATE: &str = concat!(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Git Productivity Report</title>
+    <title data-i18n="title">Git Productivity Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
@@ -191,14 +191,14 @@ pub const HTML_TEMPLATE: &str = concat!(
 </head>
 <body>
     <div class="container">
-        <h1>Git Productivity Report</h1>
+        <h1 data-i18n="title">Git Productivity Report</h1>
         
         <div class="controls">
             <div class="control-group">
                 <label data-i18n="language">Language:</label>
                 <select id="langSelect" onchange="updateLanguage(this.value)">
-                    <option value="en">English</option>
-                    <option value="ja">日本語</option>
+                    <option value="en" data-i18n="lang_en">English</option>
+                    <option value="ja" data-i18n="lang_ja">Japanese</option>
                 </select>
             </div>
             
@@ -290,7 +290,7 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div class="chart-box">
                 <div class="chart-title">
                     <span data-i18n="chart_file_type_share">File Type Share</span>
-                    <span class="info-icon" data-tooltip="Distribution of work across different file extensions.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_file_type_share" data-tooltip="Distribution of work across different file extensions.">i</span>
                 </div>
                 <canvas id="fileTypeChart"></canvas>
             </div>
@@ -321,7 +321,7 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h2 style="font-size: 18px; color: #2c3e50; margin: 0;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
                 <div id="eventSelectorContainer" style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-size: 13px; color: #7f8c8d;">Select Initiative:</label>
+                    <label data-i18n="label_select_initiative" style="font-size: 13px; color: #7f8c8d;">Select Initiative:</label>
                     <select id="eventSelect" onchange="updateImpactAssessment(this.value)" style="padding: 4px 8px; font-size: 13px;"></select>
                 </div>
             </div>
@@ -385,7 +385,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div class="goal-setter">
                         <span data-i18n="label_remaining_work">Remaining Work</span>
                         <input type="number" id="remainingWorkInput" value="100" onchange="updateDashboard()">
-                        <span style="font-size: 12px; color: #7f8c8d;">commits</span>
+                        <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>
                 <div class="forecast-card" style="border-left-color: #27ae60;">
@@ -394,7 +394,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div class="goal-setter">
                         <span data-i18n="label_weekly_goal">Goal for next week</span>
                         <input type="number" id="weeklyGoalInput" value="20" onchange="updateDashboard()">
-                        <span style="font-size: 12px; color: #7f8c8d;">commits</span>
+                        <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>
             </div>
@@ -542,8 +542,8 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
-                    <span>Review Activity (Comments Given)</span>
-                    <span class="info-icon" data-tooltip="Number of review comments (initial thread comments) given over time.">i</span>
+                    <span data-i18n="chart_review_activity">Review Activity (Comments Given)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_review_activity" data-tooltip="Number of review comments (initial thread comments) given over time.">i</span>
                 </div>
                 <canvas id="reviewActivityChart"></canvas>
             </div>
@@ -551,14 +551,14 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div class="chart-box full-width" id="reciprocityBox" style="display: none;">
                 <div class="chart-title">
                     <span data-i18n="chart_reciprocity">Review Reciprocity Matrix</span>
-                    <span class="info-icon" data-tooltip="Who reviews whom. Vertical axis: Author, Horizontal axis: Reviewer. High numbers indicate strong review pairings. Useful for spotting silos.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_reciprocity" data-tooltip="Who reviews whom. Vertical axis: Author, Horizontal axis: Reviewer. High numbers indicate strong review pairings. Useful for spotting silos.">i</span>
                 </div>
                 <canvas id="reciprocityChart"></canvas>
             </div>
             <div class="chart-box full-width" id="scatterBox" style="display: none;">
                 <div class="chart-title">
                     <span data-i18n="chart_scatter">PR Size vs Lead Time</span>
-                    <span class="info-icon" data-tooltip="Correlation between PR size (Additions + Deletions) and Lead Time. Ideally, smaller PRs should have lower lead times.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_scatter" data-tooltip="Correlation between PR size (Additions + Deletions) and Lead Time. Ideally, smaller PRs should have lower lead times.">i</span>
                 </div>
                 <canvas id="scatterChart"></canvas>
             </div>
@@ -568,14 +568,14 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div class="chart-box">
                         <div class="chart-title">
                             <span data-i18n="chart_res_dist">Response Time Distribution</span>
-                            <span class="info-icon" data-tooltip="Frequency of Response Times (in hours). Most values should be on the left (low waiting time).">i</span>
+                            <span class="info-icon" data-i18n-tooltip="tooltip_res_dist" data-tooltip="Frequency of Response Times (in hours). Most values should be on the left (low waiting time).">i</span>
                         </div>
                         <canvas id="resDistChart"></canvas>
                     </div>
                     <div class="chart-box">
                         <div class="chart-title">
                             <span data-i18n="chart_lead_dist">Lead Time Distribution</span>
-                            <span class="info-icon" data-tooltip="Frequency of Branch Lead Times (in days). Identifies consistency of the development cycle.">i</span>
+                            <span class="info-icon" data-i18n-tooltip="tooltip_lead_dist" data-tooltip="Frequency of Branch Lead Times (in days). Identifies consistency of the development cycle.">i</span>
                         </div>
                         <canvas id="leadDistChart"></canvas>
                     </div>
