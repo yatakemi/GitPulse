@@ -1762,20 +1762,30 @@ pub const HTML_TEMPLATE: &str = r#"
 
             if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
                 dashboardData.github_prs.forEach(pr => {
-                    // Review Requests (Assigned count)
+                    const prDate = pr.created_at.split('T')[0];
+                    if (prDate < startDate || prDate > endDate) return;
+
+                    // Unified set of all people tasked with reviewing this PR
+                    const assignedSet = new Set();
+                    const author = normalizeAuthor(pr.author);
+
+                    // 1. People currently requested
                     if (pr.review_requests) {
-                        pr.review_requests.forEach(req => {
-                            const norm = normalizeAuthor(req);
-                            if (userStats[norm]) {
-                                const prDate = pr.created_at.split('T')[0];
-                                if (prDate >= startDate && prDate <= endDate) {
-                                    userStats[norm].reviewsAssigned++;
-                                }
-                            }
-                        });
+                        pr.review_requests.forEach(req => assignedSet.add(normalizeAuthor(req)));
+                    }
+                    // 2. People who have already submitted a review
+                    if (pr.reviews) {
+                        pr.reviews.forEach(rev => assignedSet.add(normalizeAuthor(rev.user)));
                     }
 
-                    // Review Comments (Points made)
+                    // Count each unique reviewer once per PR (excluding author)
+                    assignedSet.forEach(user => {
+                        if (user !== author && userStats[user]) {
+                            userStats[user].reviewsAssigned++;
+                        }
+                    });
+
+                    // Review Comments (Points made) - Counted by comment date
                     if (pr.review_comments) {
                         pr.review_comments.forEach(comm => {
                             const commDate = comm.created_at.split('T')[0];
