@@ -600,31 +600,35 @@
 
         function updateFileTypeChart(filteredData) {
             const extMap = {};
+            let processedCommits = 0;
+            let commitsWithFiles = 0;
+
             filteredData.forEach(c => {
+                processedCommits++;
                 const total = c.added + c.deleted;
                 const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
                 
                 const commitExts = new Set();
-                if (c.files && Array.isArray(c.files)) {
+                if (c.files && Array.isArray(c.files) && c.files.length > 0) {
+                    commitsWithFiles++;
                     c.files.forEach(fidx => {
                         const path = filePaths[fidx];
                         if (path && typeof path === 'string') {
-                            const parts = path.split('/');
-                            const filename = parts.pop() || "";
+                            const filename = path.split('/').pop() || "";
                             if (filename.includes('.')) {
-                                const extParts = filename.split('.');
-                                const ext = extParts.pop().toLowerCase();
-                                // Handle cases like ".gitignore" where first part is empty
-                                if (ext && ext.length < 8) {
-                                    commitExts.add(ext);
-                                } else {
-                                    commitExts.add('no-ext');
-                                }
+                                const ext = filename.split('.').pop().toLowerCase();
+                                if (ext && ext.length < 10) commitExts.add(ext);
+                                else commitExts.add('others');
                             } else {
                                 commitExts.add('no-ext');
                             }
+                        } else {
+                            commitExts.add('unknown');
                         }
                     });
+                } else if (total > 0) {
+                    // Fallback for commits that have line changes but no file info
+                    commitExts.add('others');
                 }
 
                 if (commitExts.size === 0) return;
@@ -638,21 +642,20 @@
                 });
             });
 
-            // Sort by total changes (descending)
-            // Sort by total changes (descending), then by commit count
             const sortedExts = Object.values(extMap).sort((a, b) => {
                 const totalA = a.added + a.deleted;
                 const totalB = b.added + b.deleted;
                 if (totalA !== totalB) return totalB - totalA;
                 return b.commits - a.commits;
             });
+
             const topExts = sortedExts.slice(0, 15);
 
             if (fileTypeChart) fileTypeChart.destroy();
             
+            const tbody = document.getElementById('fileTypeTableBody');
             if (topExts.length === 0) {
-                const tbody = document.getElementById('fileTypeTableBody');
-                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #7f8c8d; padding: 20px;">No file data found for the selected filters.</td></tr>';
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #7f8c8d; padding: 20px;">No file data found.<br><small>(Checked ${processedCommits} commits, ${commitsWithFiles} had file info)</small></td></tr>`;
                 return;
             }
             fileTypeChart = new Chart(fileTypeCtx, {
@@ -667,7 +670,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
             });
 
-            const tbody = document.getElementById('fileTypeTableBody');
             if (tbody) {
                 tbody.innerHTML = '';
                 topExts.forEach(e => {
