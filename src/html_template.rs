@@ -372,6 +372,9 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <div>
                     <strong data-i18n="label_rework_rate_label">Rework Rate</strong>: <span data-i18n="desc_rework">Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback.</span>
                 </div>
+                <div>
+                    <strong data-i18n="metric_steps">Avg Lines Added / Week</strong>: <span data-i18n="desc_steps">Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends.</span>
+                </div>
             </div>
         </div>
 

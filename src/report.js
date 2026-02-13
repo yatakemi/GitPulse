@@ -164,13 +164,15 @@
                 metric_review_depth: "Review Depth (Comments/PR)",
                 metric_iterations: "Avg Review Iterations",
                 metric_test_ratio: "Test Code Ratio (%)",
+                metric_steps: "Avg Lines Added / Week",
                 status_improved: "Improved",
                 status_declined: "Declined",
                 status_stable: "Stable",
                 desc_throughput: "Measures delivery volume. Formula: [Merged PRs] / [Weeks in period]. Higher means the team is completing more tasks.",
                 desc_p90: "Worst-case delivery speed. Formula: The threshold under which 90% of PRs are merged. Lowering this means fewer PRs are 'stuck'.",
                 desc_stability: "Measures predictability. Formula: Standard Deviation of Lead Time. Lower means delivery is consistent regardless of author or task.",
-                desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback."
+                desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback.",
+                desc_steps: "Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends."
             },
             ja: {
                 title: "Git生産性レポート",
@@ -313,6 +315,7 @@
                 metric_review_depth: "レビュー密度 (コメント数/PR)",
                 metric_iterations: "平均イテレーション",
                 metric_test_ratio: "テストコード比率 (%)",
+                metric_steps: "平均追加行数 / 週",
                 status_improved: "改善",
                 status_declined: "低下",
                 status_stable: "安定",
@@ -320,6 +323,7 @@
                 desc_p90: "ワーストケースのデリバリー速度。PR全体の90%が含まれる範囲の日数を示します。この数値が改善（低下）しているほど、『放置されるPR』や『異常に難航するタスク』が減っていることを意味します。",
                 desc_stability: "開発サイクルの予測可能性を測定。算出式: リードタイムの標準偏差。数値が低いほど、タスクの難易度や担当者に左右されず、安定してデリバリーされていることを示します。",
                 desc_rework: "実装前の合意形成の質を測定。算出式: [修正依頼が発生、またはレビュー往復が2回以上あったPR数] / [PR総数]。GitHub公式の『Request Changes』を使わない、コメントベースの修正指示も『実質的な手戻り』として捕捉します。",
+                desc_steps: "実装ボリュームを測定。算出式: [期間内の総追加行数] / [期間の週数]。施策後に実装スピードやテスト量が増えたかを確認するのに役立ちます。",
                 desc_rework_prs: "修正依頼、または2回以上のレビューサイクルを要したPRの割合",
                 desc_avg_comments: "1PRあたりの平均コメント数（議論の活発さ・レビューの丁寧さ）",
                 desc_first_reaction: "人間による最初のレビュー依頼から、最初の反応があるまでの平均経過時間",
@@ -1776,7 +1780,7 @@
 
                 const stdDev = Math.sqrt(leadTimeValues.reduce((a, b) => a + Math.pow(b - lt.avg, 2), 0) / (leadTimeValues.length || 1));
 
-                // Calculate Test Ratio from daily_file_type_stats
+                // Calculate Steps (Lines Added) and Test Ratio from daily_file_type_stats
                 const fileStats = dashboardData.daily_file_type_stats || [];
                 let totalAdded = 0;
                 let testAdded = 0;
@@ -1792,6 +1796,7 @@
                     }
                 });
                 const testRatio = totalAdded > 0 ? (testAdded / totalAdded) * 100 : 0;
+                const stepsPerWeek = totalAdded / (periodWeeks || 1);
 
                 return { 
                     throughput, 
@@ -1805,7 +1810,8 @@
                     responseMedian: res.median,
                     reviewDepth: depth.avg, 
                     iterations: iters.avg,
-                    testRatio
+                    testRatio,
+                    stepsPerWeek
                 };
             }
 
@@ -1826,7 +1832,8 @@
                 { id: 'metric_response_time', b: before.responseTime, a: after.responseTime, unit: 'h', lowerIsBetter: true },
                 { id: 'metric_review_depth', b: before.reviewDepth, a: after.reviewDepth, unit: '', lowerIsBetter: false },
                 { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true },
-                { id: 'metric_test_ratio', b: before.testRatio, a: after.testRatio, unit: '%', lowerIsBetter: false }
+                { id: 'metric_test_ratio', b: before.testRatio, a: after.testRatio, unit: '%', lowerIsBetter: false },
+                { id: 'metric_steps', b: before.stepsPerWeek, a: after.stepsPerWeek, unit: ' lines/week', lowerIsBetter: false }
             ];
 
             metrics.forEach(m => {
