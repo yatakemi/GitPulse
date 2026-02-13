@@ -366,6 +366,9 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <div>
                     <strong data-i18n="metric_steps">Avg Lines Added / Week</strong>: <span data-i18n="desc_steps">Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends.</span>
                 </div>
+                <div>
+                    <strong data-i18n="metric_commit_density">Commit Density (Commits/Week)</strong>: <span data-i18n="desc_commit_density">Measures activity frequency. Formula: [Total Commits] / [Weeks in period]. Helps see if work was broken down into smaller increments.</span>
+                </div>
             </div>
         </div>
 

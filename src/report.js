@@ -172,6 +172,7 @@
                 metric_iterations: "Avg Review Iterations",
                 metric_test_ratio: "Test Code Ratio (%)",
                 metric_steps: "Avg Lines Added / Week",
+                metric_commit_density: "Commit Density (Commits/Week)",
                 status_improved: "Improved",
                 status_declined: "Declined",
                 status_stable: "Stable",
@@ -180,6 +181,7 @@
                 desc_stability: "Measures predictability. Formula: Standard Deviation of Lead Time. Lower means delivery is consistent regardless of author or task.",
                 desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback.",
                 desc_steps: "Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends.",
+                desc_commit_density: "Measures activity frequency. Formula: [Total Commits] / [Weeks in period]. Helps see if work was broken down into smaller increments.",
                 desc_review_cycles: "Review-to-Merge cycles. Calculated as the total number of review submissions per PR (multiple interactions on the same day are counted).",
                 tooltip_rework_rate: "Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.",
                 tooltip_review_depth: "Average number of comments per PR. Measures the thoroughness of the review process.",
@@ -341,6 +343,7 @@
                 metric_iterations: "平均イテレーション",
                 metric_test_ratio: "テストコード比率 (%)",
                 metric_steps: "平均追加行数 / 週",
+                metric_commit_density: "コミット密度 (コミット数/週)",
                 status_improved: "改善",
                 status_declined: "低下",
                 status_stable: "安定",
@@ -349,6 +352,7 @@
                 desc_stability: "開発サイクルの予測可能性を測定。算出式: リードタイムの標準偏差。数値が低いほど、タスクの難易度や担当者に左右されず、安定してデリバリーされていることを示します。",
                 desc_rework: "実装前の合意形成の質を測定。算出式: [修正依頼が発生、またはレビュー往復が2回以上あったPR数] / [PR総数]。GitHub公式の『Request Changes』を使わない、コメントベースの修正指示も『実質的な手戻り』として捕捉します。",
                 desc_steps: "実装ボリュームを測定。算出式: [期間内の総追加行数] / [期間の週数]。施策後に実装スピードやテスト量が増えたかを確認するのに役立ちます。",
+                desc_commit_density: "活動頻度を測定。算出式: [期間内の総コミット数] / [期間の週数]。作業が細かく分割されるようになったか（アトミックなコミット）を確認するのに役立ちます。",
                 desc_rework_prs: "修正依頼、または2回以上のレビューサイクルを要したPRの割合",
                 desc_avg_comments: "1PRあたりの平均コメント数（議論の活発さ・レビューの丁寧さ）",
                 desc_first_reaction: "人間による最初のレビュー依頼から、最初の反応があるまでの平均経過時間",
@@ -2050,8 +2054,16 @@
                 const testRatio = totalAdded > 0 ? (testAdded / totalAdded) * 100 : 0;
                 const stepsPerWeek = totalAdded / (periodWeeks || 1);
 
+                // Calculate Commit Density
+                const commitsInPeriod = dashboardData.commits.filter(c => {
+                    const d = new Date(c.date);
+                    return isBefore ? (d >= ninetyDaysBefore && d < eventDate) : (d >= eventDate);
+                }).length;
+                const commitDensity = commitsInPeriod / (periodWeeks || 1);
+
                 return { 
                     throughput, 
+                    commitDensity,
                     median: lt.median, 
                     p90: lt.p90 || 0, // Fallback
                     max: lt.max,
@@ -2077,6 +2089,7 @@
 
             const metrics = [
                 { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false },
+                { id: 'metric_commit_density', b: before.commitDensity, a: after.commitDensity, unit: ' commits/week', lowerIsBetter: false },
                 { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true },
