@@ -256,34 +256,34 @@ pub const HTML_TEMPLATE: &str = r#"
             <div class="card" style="border-top: 4px solid #e67e22;">
                 <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <span data-i18n="sum_rework_rate">Rework Rate</span>
-                    <span class="info-icon" data-tooltip="Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_rework_rate" data-tooltip="Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.">i</span>
                 </h3>
                 <div class="value" id="reworkRateValue">-</div>
-                <div style="font-size: 11px; color: #7f8c8d;">% of PRs with Request Changes</div>
+                <div style="font-size: 11px; color: #7f8c8d;" data-i18n="desc_rework_prs">% of PRs with Request Changes</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
                 <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <span data-i18n="sum_review_depth">Review Depth</span>
-                    <span class="info-icon" data-tooltip="Average number of comments per PR. Measures the thoroughness of the review process.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_review_depth" data-tooltip="Average number of comments per PR. Measures the thoroughness of the review process.">i</span>
                 </h3>
                 <div class="value" id="reviewDepthValue">-</div>
-                <div style="font-size: 11px; color: #7f8c8d;">Avg Comments / PR</div>
+                <div style="font-size: 11px; color: #7f8c8d;" data-i18n="desc_avg_comments">Avg Comments / PR</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
                 <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <span data-i18n="sum_response_time">Avg Response Time</span>
-                    <span class="info-icon" data-tooltip="Average time from PR creation to the very first review or comment. Measures waiting time for developers.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_response_time" data-tooltip="Average time from PR creation to the very first review or comment. Measures waiting time for developers.">i</span>
                 </h3>
                 <div class="value" id="avgResponseTimeValue">-</div>
-                <div style="font-size: 11px; color: #7f8c8d;">Time to first reaction</div>
+                <div style="font-size: 11px; color: #7f8c8d;" data-i18n="desc_first_reaction">Time to first reaction</div>
             </div>
             <div class="card" style="border-top: 4px solid #e67e22;">
                 <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <span data-i18n="sum_iterations">Avg Iterations</span>
-                    <span class="info-icon" data-tooltip="Average number of review-and-fix cycles per PR. High iterations suggest complex tasks or unclear requirements.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_iterations" data-tooltip="Average number of review-and-fix cycles per PR. High iterations suggest complex tasks or unclear requirements.">i</span>
                 </h3>
                 <div class="value" id="avgIterationsValue">-</div>
-                <div style="font-size: 11px; color: #7f8c8d;">Review-to-Merge cycles</div>
+                <div style="font-size: 11px; color: #7f8c8d;" data-i18n="desc_review_cycles">Review-to-Merge cycles</div>
             </div>
         </div>
 
@@ -317,10 +317,10 @@ pub const HTML_TEMPLATE: &str = r#"
                     <table class="user-table" style="font-size: 12px;">
                         <thead>
                             <tr>
-                                <th>Ext</th>
-                                <th>Added</th>
-                                <th>Deleted</th>
-                                <th>Churn%</th>
+                                <th data-i18n="header_ext">Ext</th>
+                                <th data-i18n="header_added">Added</th>
+                                <th data-i18n="header_deleted">Deleted</th>
+                                <th data-i18n="header_churn_rate">Churn%</th>
                             </tr>
                         </thead>
                         <tbody id="fileTypeTableBody">
@@ -360,16 +360,16 @@ pub const HTML_TEMPLATE: &str = r#"
             
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; font-size: 12px; color: #7f8c8d;">
                 <div>
-                    <strong>Throughput:</strong> <span data-i18n="desc_throughput">Measures volume. Higher means the team is delivering more completed work.</span>
+                    <strong data-i18n="label_throughput">Throughput</strong>: <span data-i18n="desc_throughput">Measures volume. Higher means the team is delivering more completed work.</span>
                 </div>
                 <div>
-                    <strong>P90 Lead Time:</strong> <span data-i18n="desc_p90">Worst-case scenario. Lower means fewer PRs are being "stuck" or forgotten.</span>
+                    <strong data-i18n="label_p90">P90 Lead Time</strong>: <span data-i18n="desc_p90">Worst-case scenario. Lower means fewer PRs are being "stuck" or forgotten.</span>
                 </div>
                 <div>
-                    <strong>Stability:</strong> <span data-i18n="desc_stability">Standard deviation of Lead Time. Lower means the process is consistent and predictable.</span>
+                    <strong data-i18n="label_stability">Stability</strong>: <span data-i18n="desc_stability">Standard deviation of Lead Time. Lower means the process is consistent and predictable.</span>
                 </div>
                 <div>
-                    <strong>Rework Rate:</strong> <span data-i18n="desc_rework">Percentage of PRs needing fixes. Lower suggests better alignment before code is written.</span>
+                    <strong data-i18n="label_rework_rate_label">Rework Rate</strong>: <span data-i18n="desc_rework">Percentage of PRs needing fixes. Lower suggests better alignment before code is written.</span>
                 </div>
             </div>
         </div>
@@ -541,7 +541,7 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
             <!-- Details section for commits -->
             <div id="commitDetails" style="margin-top: 25px; display: none; background: #fdfdfd; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
-                <h3 id="detailsTitle" style="font-size: 16px; margin-top: 0;">Commit Details</h3>
+                <h3 id="detailsTitle" style="font-size: 16px; margin-top: 0;" data-i18n="title_commit_details">Commit Details</h3>
                 <div id="detailsContent" style="max-height: 400px; overflow-y: auto;"></div>
             </div>
         </div>
@@ -654,6 +654,26 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_review_depth: "Review Depth",
                 sum_response_time: "Avg Response Time",
                 sum_iterations: "Avg Iterations",
+                title_commit_details: "Commit Details",
+                label_commits_by: "Commits by",
+                header_date: "Date",
+                header_message: "Message",
+                header_hash: "Hash",
+                header_files: "Files",
+                desc_rework_prs: "% of PRs with Request Changes",
+                desc_avg_comments: "Avg Comments / PR",
+                desc_first_reaction: "Time to first reaction",
+                desc_review_cycles: "Review-to-Merge cycles",
+                tooltip_rework_rate: "Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.",
+                tooltip_review_depth: "Average number of comments per PR. Measures the thoroughness of the review process.",
+                tooltip_response_time: "Average time from PR creation to the very first review or comment. Measures waiting time for developers.",
+                tooltip_iterations: "Average number of review-and-fix cycles per PR. High iterations suggest complex tasks or unclear requirements.",
+                header_ext: "Ext",
+                header_churn_rate: "Churn%",
+                label_throughput: "Throughput",
+                label_p90: "P90 Lead Time",
+                label_stability: "Stability",
+                label_rework_rate_label: "Rework Rate",
                 chart_reciprocity: "Review Reciprocity Matrix",
                 chart_scatter: "PR Size vs Lead Time",
                 chart_file_type_share: "File Type Share",
@@ -784,6 +804,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_review_depth: "レビュー密度",
                 sum_response_time: "平均反応時間",
                 sum_iterations: "平均イテレーション",
+                title_commit_details: "コミット詳細",
+                label_commits_by: "コミット履歴:",
+                header_date: "日付",
+                header_message: "メッセージ",
+                header_hash: "ハッシュ",
+                header_files: "ファイル",
                 chart_reciprocity: "レビュー相互関係マトリクス",
                 chart_scatter: "PRサイズ vs リードタイム",
                 chart_file_type_share: "ファイル種別シェア",
@@ -808,7 +834,23 @@ pub const HTML_TEMPLATE: &str = r#"
                 desc_throughput: "生産量を測定。高いほどチームが多くの成果（マージ）を届けていることを示します。",
                 desc_p90: "ワーストケースの指標。低いほど「放置」や「停滞」しているPRが少ないことを示します。",
                 desc_stability: "標準偏差で測定。低いほどプロセスが誰に対しても安定・予測可能であることを示します。",
-                desc_rework: "修正が必要だったPRの割合。低いほど実装前の合意形成がスムーズであることを示します。"
+                desc_rework: "修正が必要だったPRの割合。低いほど実装前の合意形成がスムーズであることを示します。",
+                desc_rework_prs: "修正依頼が発生したPRの割合",
+                desc_avg_comments: "1PRあたりの平均コメント数",
+                desc_first_reaction: "最初の反応までの時間",
+                desc_review_cycles: "レビューからマージまでのサイクル数",
+                tooltip_rework_rate: "『Changes Requested』状態になったPRの割合。施策による『手戻り』の頻度を示します。高すぎると仕様不備、低すぎるとレビュー形骸化のサインです。",
+                tooltip_review_depth: "1PRあたりの平均コメント数。レビューの丁寧さを測定します。議論が活発なほど見逃しが少ない傾向にあります。",
+                tooltip_response_time: "PR作成から最初のレビュー（またはコメント）までの経過時間。開発者の『待ち時間』を測定します。短いほどコラボレーションが迅速です。",
+                tooltip_iterations: "1PRあたりのレビュー往復回数。回数が多い場合は、要件の不明確さや設計の複雑さを示唆します。",
+                header_ext: "拡張子",
+                header_added: "追加",
+                header_deleted: "削除",
+                header_churn_rate: "手戻り率",
+                label_throughput: "生産量",
+                label_p90: "最悪リードタイム",
+                label_stability: "プロセスの安定性",
+                label_rework_rate_label: "修正依頼率"
             }
         };
 
@@ -2138,7 +2180,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 return norm === user && date >= startDate && date <= endDate;
             }).sort((a, b) => b.date.localeCompare(a.date));
 
-            detailsTitle.innerHTML = `Commits by <strong>${user}</strong> (${userCommits.length})`;
+            detailsTitle.innerHTML = `${t('label_commits_by')} <strong>${user}</strong> (${userCommits.length})`;
             detailsDiv.style.display = 'block';
             
             if (userCommits.length === 0) {
@@ -2156,12 +2198,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 <table class="user-table" style="font-size: 12px;">
                     <thead>
                         <tr>
-                            <th>Hash</th>
-                            <th>Date</th>
-                            <th>Message</th>
-                            <th>Added</th>
-                            <th>Deleted</th>
-                            <th>Files</th>
+                            <th>${t('header_hash')}</th>
+                            <th>${t('header_date')}</th>
+                            <th>${t('header_message')}</th>
+                            <th>${t('header_added')}</th>
+                            <th>${t('header_deleted')}</th>
+                            <th>${t('header_files')}</th>
                         </tr>
                     </thead>
                     <tbody>
