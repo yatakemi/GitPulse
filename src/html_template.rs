@@ -863,6 +863,12 @@ pub const HTML_TEMPLATE: &str = r#"
         function updateLanguage(lang) {
             currentLang = lang;
             document.getElementById('langSelect').value = lang;
+            applyTranslations();
+            updateDashboard();
+        }
+
+        function applyTranslations() {
+            const lang = currentLang;
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.textContent = translations[lang][key];
@@ -871,7 +877,6 @@ pub const HTML_TEMPLATE: &str = r#"
                  const key = el.getAttribute('data-i18n-tooltip');
                  if (key && translations[lang][key]) el.setAttribute('data-tooltip', translations[lang][key]);
             });
-            updateDashboard();
         }
 
         const dashboardData = {{ data | json_encode() | safe }};
@@ -1019,6 +1024,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 const users = params.get('users').split(',').filter(u => u.length > 0);
                 selectedUsers = new Set(users);
             }
+            applyTranslations();
         }
 
         function updateDashboard() {
