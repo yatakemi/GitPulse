@@ -313,15 +313,16 @@ pub const HTML_TEMPLATE: &str = r#"
                     <div class="forecast-value" id="estCompletionValue">-</div>
                     <div id="estCompletionRange" style="font-size: 12px; color: #7f8c8d; margin-top: 5px;"></div>
                     <div class="goal-setter">
-                        <span data-i18n="label_target_goal">Target Goal</span>
-                        <input type="number" id="targetGoalInput" value="1000" onchange="updateDashboard()">
+                        <span data-i18n="label_remaining_work">Remaining Work</span>
+                        <input type="number" id="remainingWorkInput" value="100" onchange="updateDashboard()">
+                        <span style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>
             </div>
             <div class="chart-box full-width" style="box-shadow: none; padding: 0;">
                 <div class="chart-title">
                     <span data-i18n="forecast_chart_title">Velocity Forecasting</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_forecast" data-tooltip="Predicts future commit count based on recent velocity. Useful for estimating project completion dates.">i</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_forecast" data-tooltip="Predicts future output based on the last 4 weeks of velocity. The dotted line shows the projected trend. Change the 'Remaining Work' to see an estimated completion date.">i</span>
                 </div>
                 <canvas id="forecastChart" style="height: 300px;"></canvas>
             </div>
@@ -565,11 +566,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 title_predictive_analysis: "Predictive Analysis (BETA)",
                 label_current_velocity: "Current Velocity",
                 label_projected_throughput: "Projected 60-Day Throughput",
-                label_target_goal: "Target Goal (Commits)",
+                label_remaining_work: "Remaining Work",
                 label_est_completion: "Estimated Completion Date",
                 forecast_chart_title: "Velocity Forecasting",
                 insight_predicted_goal_title: "Target Forecast",
-                insight_predicted_goal_desc: "You will reach your goal of {target} commits by {date}.",
+                insight_predicted_goal_desc: "You will complete the remaining {remaining} commits by {date}.",
                 sum_rework_rate: "Rework Rate",
                 sum_review_depth: "Review Depth",
                 sum_response_time: "Avg Response Time",
@@ -689,11 +690,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 title_predictive_analysis: "予測分析（ベータ版）",
                 label_current_velocity: "現在のベロシティ",
                 label_projected_throughput: "今後60日間の予測作業量",
-                label_target_goal: "目標コミット数",
+                label_remaining_work: "残りの作業量",
                 label_est_completion: "予測完了日",
                 forecast_chart_title: "ベロシティ予測",
                 insight_predicted_goal_title: "🎯 目標予測",
-                insight_predicted_goal_desc: "目標の{target}コミットには{date}に到達する見込みです。",
+                insight_predicted_goal_desc: "残り{remaining}コミットは{date}に完了する見込みです。",
                 sum_rework_rate: "修正依頼率",
                 sum_review_depth: "レビュー密度",
                 sum_response_time: "平均反応時間",
@@ -1458,12 +1459,10 @@ pub const HTML_TEMPLATE: &str = r#"
             document.getElementById('currentVelocityValue').innerHTML = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week <span style="font-size: 12px; color: ${confidenceColor}; font-weight: normal;">(Confidence: ${confidence})</span>`;
             
             const projected60 = Math.round(currentVelocity * (60/7));
-            document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
+            if (document.getElementById('projectedThroughputValue')) document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
 
-            // Goal Estimation
-            const targetGoal = parseInt(document.getElementById('targetGoalInput').value) || 1000;
-            const currentTotalCommits = filteredData.reduce((acc, d) => acc + d.commit_count, 0);
-            const remaining = targetGoal - currentTotalCommits;
+            // Goal Estimation (Using REMAINING work directly)
+            const remaining = parseInt(document.getElementById('remainingWorkInput').value) || 0;
             
             if (remaining > 0 && currentVelocity > 0) {
                 function calcDate(v) {
@@ -1477,25 +1476,27 @@ pub const HTML_TEMPLATE: &str = r#"
                 const optimisticDate = calcDate(currentVelocity + stdev);
                 const pessimisticDate = calcDate(Math.max(currentVelocity - stdev, 0.5));
 
-                document.getElementById('estCompletionValue').textContent = likelyDate;
-                document.getElementById('estCompletionRange').innerHTML = 
+                if (document.getElementById('estCompletionValue')) document.getElementById('estCompletionValue').textContent = likelyDate;
+                if (document.getElementById('estCompletionRange')) document.getElementById('estCompletionRange').innerHTML = 
                     `🚀 Optimistic: ${optimisticDate}<br>🐢 Pessimistic: ${pessimisticDate}`;
                 
                 // Add predictive insight
                 const insightsContainer = document.getElementById('insightsGrid');
-                const card = document.createElement('div');
-                card.className = 'insight-card positive';
-                card.innerHTML = `
-                    <div class="insight-icon">🎯</div>
-                    <div class="insight-body">
-                        <div class="insight-title">${t('insight_predicted_goal_title')}</div>
-                        <div class="insight-desc">Based on <strong>${confidence}</strong> confidence data, you'll likely reach ${targetGoal} commits by ${likelyDate}.</div>
-                    </div>
-                `;
-                insightsContainer.prepend(card);
+                if (insightsContainer) {
+                    const card = document.createElement('div');
+                    card.className = 'insight-card positive';
+                    card.innerHTML = `
+                        <div class="insight-icon">🎯</div>
+                        <div class="insight-body">
+                            <div class="insight-title">${t('insight_predicted_goal_title')}</div>
+                            <div class="insight-desc">${t('insight_predicted_goal_desc').replace('{remaining}', remaining).replace('{date}', likelyDate)}</div>
+                        </div>
+                    `;
+                    insightsContainer.prepend(card);
+                }
             } else {
-                document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Goal Reached!' : '-';
-                document.getElementById('estCompletionRange').textContent = '';
+                if (document.getElementById('estCompletionValue')) document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Work Complete!' : '-';
+                if (document.getElementById('estCompletionRange')) document.getElementById('estCompletionRange').textContent = '';
             }
 
             updateForecastChart(weeklyStats, currentVelocity, stdev);
