@@ -155,7 +155,7 @@ impl GitHubClient {
         
         let mut all_prs = Vec::new();
         let mut cursor: Option<String> = None;
-        let pages_to_fetch = 10; // Fetch up to 500 PRs (50 per page)
+        let pages_to_fetch = 20; // Fetch up to 1000 PRs (50 per page)
 
         for page in 1..=pages_to_fetch {
             if page > 1 {
@@ -311,6 +311,11 @@ impl GitHubClient {
         }
 
         if pages_to_fetch > 1 { println!(); }
+
+        if let (Some(first), Some(last)) = (all_prs.first(), all_prs.last()) {
+            println!("✅ Collected {} PRs spanning from {} to {}", all_prs.len(), last.created_at.date_naive(), first.created_at.date_naive());
+        }
+
         Ok(all_prs)
     }
 }
