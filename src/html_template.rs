@@ -91,7 +91,22 @@ pub const HTML_TEMPLATE: &str = r#"
             color: #7f8c8d;
             font-size: 0.85rem;
             text-transform: uppercase;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 20px;
         }
+        .user-table th:hover { background-color: #f1f1f1; color: #2c3e50; }
+        .user-table th::after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            opacity: 0.3;
+            font-size: 0.7rem;
+        }
+        .user-table th.sort-asc::after { content: '▲'; opacity: 1; color: #3498db; }
+        .user-table th.sort-desc::after { content: '▼'; opacity: 1; color: #3498db; }
+        
         .user-table tr:hover {
             background-color: #f9f9f9;
         }
@@ -469,17 +484,17 @@ pub const HTML_TEMPLATE: &str = r#"
                 <table class="user-table" id="userTable">
                     <thead>
                         <tr>
-                            <th data-i18n="header_author">Author</th>
-                            <th data-i18n="header_commits">Commits</th>
-                            <th data-i18n="header_added">Added</th>
-                            <th data-i18n="header_deleted">Deleted</th>
-                            <th data-i18n="header_total_changes">Total Changes</th>
-                            <th data-i18n="sum_churn">Churn Rate</th>
-                            <th data-i18n="header_reviews">Reviews (Assigned)</th>
-                            <th data-i18n="header_comments">Review Comments</th>
-                            <th data-i18n="header_review_lead_time">Review Lead Time</th>
-                            <th data-i18n="header_avg_lead_time">Branch Lead Time</th>
-                            <th data-i18n="header_active_days">Active Days</th>
+                            <th onclick="toggleSort('author')" id="th-author" data-i18n="header_author">Author</th>
+                            <th onclick="toggleSort('commits')" id="th-commits" data-i18n="header_commits">Commits</th>
+                            <th onclick="toggleSort('added')" id="th-added" data-i18n="header_added">Added</th>
+                            <th onclick="toggleSort('deleted')" id="th-deleted" data-i18n="header_deleted">Deleted</th>
+                            <th onclick="toggleSort('total_changes')" id="th-total_changes" data-i18n="header_total_changes">Total Changes</th>
+                            <th onclick="toggleSort('churn_rate')" id="th-churn_rate" data-i18n="sum_churn">Churn Rate</th>
+                            <th onclick="toggleSort('reviewsAssigned')" id="th-reviewsAssigned" data-i18n="header_reviews">Reviews (Assigned)</th>
+                            <th onclick="toggleSort('commentsGiven')" id="th-commentsGiven" data-i18n="header_comments">Review Comments</th>
+                            <th onclick="toggleSort('avgReviewLeadTime')" id="th-avgReviewLeadTime" data-i18n="header_review_lead_time">Review Lead Time</th>
+                            <th onclick="toggleSort('avgLeadTime')" id="th-avgLeadTime" data-i18n="header_avg_lead_time">Branch Lead Time</th>
+                            <th onclick="toggleSort('activeDays')" id="th-activeDays" data-i18n="header_active_days">Active Days</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -818,6 +833,18 @@ pub const HTML_TEMPLATE: &str = r#"
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
         const allDates = [...new Set(data.map(d => d.dateStr))].sort();
+
+        let currentSort = { column: 'commits', direction: 'desc' };
+
+        function toggleSort(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'desc'; // Default to desc for new column
+            }
+            updateUserList();
+        }
 
         if (allDates.length > 0) {
             document.getElementById('startDate').value = allDates[0];
@@ -1855,29 +1882,72 @@ pub const HTML_TEMPLATE: &str = r#"
 
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
-            Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits).forEach(([user, s]) => {
+
+            // Calculate aggregated metrics for sorting
+            const rows = Object.entries(userStats).map(([user, s]) => {
+                const totalChanges = s.added + s.deleted;
+                const churn_rate = totalChanges > 0 ? (s.churn / totalChanges) * 100 : 0;
+                const avgReviewLeadTime = s.reviewLeadTimes && s.reviewLeadTimes.length > 0 
+                    ? s.reviewLeadTimes.reduce((a, b) => a + b, 0) / s.reviewLeadTimes.length
+                    : -1;
+                const avgLeadTime = s.leadTimes.length > 0 
+                    ? s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length
+                    : -1;
+
+                return {
+                    user,
+                    commits: s.commits,
+                    added: s.added,
+                    deleted: s.deleted,
+                    total_changes: totalChanges,
+                    churn_rate,
+                    reviewsAssigned: s.reviewsAssigned,
+                    commentsGiven: s.commentsGiven,
+                    avgReviewLeadTime,
+                    avgLeadTime,
+                    activeDays: s.activeDays.size
+                };
+            });
+
+            // Sort data
+            rows.sort((a, b) => {
+                let vA = a[currentSort.column];
+                let vB = b[currentSort.column];
+                
+                if (typeof vA === 'string') {
+                    return currentSort.direction === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+                }
+                return currentSort.direction === 'asc' ? vA - vB : vB - vA;
+            });
+
+            // Update UI headers
+            document.querySelectorAll('.user-table th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            const activeTh = document.getElementById('th-' + currentSort.column);
+            if (activeTh) activeTh.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+            rows.forEach(r => {
                 const tr = document.createElement('tr');
                 tr.style.cursor = 'pointer';
-                tr.onclick = () => showCommitDetails(user);
+                tr.onclick = () => showCommitDetails(r.user);
                 
-                const totalChanges = s.added + s.deleted;
-                const churnRate = totalChanges > 0 ? ((s.churn / totalChanges) * 100).toFixed(1) : '0.0';
-                const avgReviewLeadTime = s.reviewLeadTimes && s.reviewLeadTimes.length > 0 
-                    ? (s.reviewLeadTimes.reduce((a, b) => a + b, 0) / s.reviewLeadTimes.length).toFixed(1) + 'd'
-                    : '-';
+                const tr_churn = r.total_changes > 0 ? r.churn_rate.toFixed(1) : '0.0';
+                const tr_review_lead = r.avgReviewLeadTime >= 0 ? r.avgReviewLeadTime.toFixed(1) + 'd' : '-';
+                const tr_branch_lead = r.avgLeadTime >= 0 ? r.avgLeadTime.toFixed(1) + 'd' : '-';
 
                 tr.innerHTML = `
-                    <td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td>
-                    <td>${s.commits}</td>
-                    <td><span class="badge added">+${s.added.toLocaleString()}</span></td>
-                    <td><span class="badge deleted">-${s.deleted.toLocaleString()}</span></td>
-                    <td>${totalChanges.toLocaleString()}</td>
-                    <td><span class="badge" style="background: ${s.churn > (totalChanges * 0.5) ? '#fdf2f2' : '#f8f9fa'}; color: ${s.churn > (totalChanges * 0.5) ? '#e74c3c' : '#666'}">${churnRate}%</span></td>
-                    <td>${s.reviewsAssigned}</td>
-                    <td>${s.commentsGiven}</td>
-                    <td>${avgReviewLeadTime}</td>
-                    <td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) + 'd' : '-'}</td>
-                    <td>${s.activeDays.size}</td>
+                    <td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(r.user)}"></div><strong>${r.user}</strong></div></td>
+                    <td>${r.commits}</td>
+                    <td><span class="badge added">+${r.added.toLocaleString()}</span></td>
+                    <td><span class="badge deleted">-${r.deleted.toLocaleString()}</span></td>
+                    <td>${r.total_changes.toLocaleString()}</td>
+                    <td><span class="badge" style="background: ${r.churn_rate > 50 ? '#fdf2f2' : '#f8f9fa'}; color: ${r.churn_rate > 50 ? '#e74c3c' : '#666'}">${tr_churn}%</span></td>
+                    <td>${r.reviewsAssigned}</td>
+                    <td>${r.commentsGiven}</td>
+                    <td>${tr_review_lead}</td>
+                    <td>${tr_branch_lead}</td>
+                    <td>${r.activeDays}</td>
                 `;
                 tbody.appendChild(tr);
             });
