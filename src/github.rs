@@ -153,10 +153,14 @@ impl GitHubClient {
     }
 
     pub fn fetch_reviews(&self, mut existing_prs: Vec<GitHubPR>) -> Result<Vec<GitHubPR>> {
-        let max_existing_number = existing_prs.iter().map(|pr| pr.number).max().unwrap_or(0);
+        let max_finalized_number = existing_prs.iter()
+            .filter(|pr| pr.state == "MERGED" || pr.state == "CLOSED")
+            .map(|pr| pr.number)
+            .max()
+            .unwrap_or(0);
         
-        if max_existing_number > 0 {
-            println!("🔄 Checking for new PRs since #{}...", max_existing_number);
+        if max_finalized_number > 0 {
+            println!("🔄 Checking for new PRs and updating open ones since finalized PR #{}...", max_finalized_number);
         } else {
             println!("🔍 Fetching GitHub PRs and reviews for {}...", self.repo);
         }
@@ -169,7 +173,7 @@ impl GitHubClient {
         for page in 1..=pages_to_fetch {
             if stop_fetching { break; }
 
-            print!("\r   Fetching PRs... (Page {}/{}, New PRs: {})", page, pages_to_fetch, new_prs.len());
+            print!("\r   Fetching PRs... (Page {}/{}, New/Updated PRs: {})", page, pages_to_fetch, new_prs.len());
             use std::io::Write;
             std::io::stdout().flush().ok();
 
@@ -258,8 +262,8 @@ impl GitHubClient {
                 for node in nodes {
                     let number = node["number"].as_u64().unwrap_or(0) as u32;
                     
-                    // Stop if we reached a PR that is already in the cache
-                    if max_existing_number > 0 && number <= max_existing_number {
+                    // Stop if we reached a PR that was already finalized in previous runs
+                    if max_finalized_number > 0 && number <= max_finalized_number {
                         stop_fetching = true;
                         break;
                     }
@@ -360,7 +364,11 @@ impl GitHubClient {
 
         if pages_to_fetch > 1 { println!(); }
 
-        // Merge new and existing PRs
+        // Merge new and existing PRs, deduplicating by PR number
+        // (existing_prs contains old versions of newly fetched PRs, so we filter them out)
+        let new_pr_numbers: std::collections::HashSet<u32> = new_prs.iter().map(|pr| pr.number).collect();
+        existing_prs.retain(|pr| !new_pr_numbers.contains(&pr.number));
+
         let mut all_combined = new_prs;
         all_combined.append(&mut existing_prs);
         
