@@ -257,6 +257,8 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
         let day_dir_set = daily_dirs.entry(date_str.clone()).or_insert(HashSet::new());
         let mut commit_exts = HashSet::new();
         for &file_idx in &commit.files {
+            if file_idx >= data.file_paths.len() { continue; } // Safety check
+            
             let file_key = (file_idx, commit.author.clone());
             *file_map.entry(file_key).or_insert(0) += 1;
 

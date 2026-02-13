@@ -1204,8 +1204,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 if (pr.merged_at) {
                     const leadTimeDays = (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24);
                     const size = (pr.additions || 0) + (pr.deletions || 0);
-                    if (size > 0 && leadTimeDays > 0) {
-                        scatterData.push({ x: size, y: leadTimeDays, label: pr.title });
+                    if (leadTimeDays > 0) {
+                        // Use Math.max(1, size) to avoid log(0) errors on logarithmic scale
+                        scatterData.push({ x: Math.max(1, size), y: leadTimeDays, label: pr.title });
                     }
                 }
             });
@@ -1314,12 +1315,13 @@ pub const HTML_TEMPLATE: &str = r#"
             const totalChanges = currentData.reduce((acc, d) => acc + d.total_changes, 0);
             const totalChurn = currentData.reduce((acc, d) => acc + d.churn, 0);
             const totalMerges = currentData.reduce((acc, d) => acc + d.merges, 0);
-            const churnRate = totalChanges > 0 ? ((totalChurn / totalChanges) * 100).toFixed(1) : 0;
-            document.getElementById('summaryValue').textContent = currentTotal.toLocaleString();
-            document.getElementById('mergeCommitsValue').textContent = totalMerges.toLocaleString();
+            const churnRate = totalChanges > 0 ? ((totalChurn / totalChanges) * 100).toFixed(1) : '0.0';
+            
+            document.getElementById('summaryValue').textContent = (currentTotal || 0).toLocaleString();
+            document.getElementById('mergeCommitsValue').textContent = (totalMerges || 0).toLocaleString();
             document.getElementById('churnRateValue').textContent = `${churnRate}%`;
-            document.getElementById('activeDaysValue').textContent = activeDays;
-            document.getElementById('avgPerDayValue').textContent = Number(avgPerDay).toLocaleString();
+            document.getElementById('activeDaysValue').textContent = activeDays || 0;
+            document.getElementById('avgPerDayValue').textContent = Number(avgPerDay || 0).toLocaleString();
         }
 
         function updateTimelineChart(filteredData, metric, chartType, showTrend, startDate, endDate) {
@@ -1327,11 +1329,15 @@ pub const HTML_TEMPLATE: &str = r#"
             let curr = new Date(startDate);
             const end = new Date(endDate);
             const displayDates = [];
-            while (curr <= end) {
+            
+            // Safety limit to 2 years of daily data
+            let safety = 0;
+            while (curr <= end && safety < 730) {
                 const dStr = curr.toISOString().split('T')[0];
                 displayDates.push(dStr);
                 dateMap.set(dStr, {});
                 curr.setDate(curr.getDate() + 1);
+                safety++;
             }
             filteredData.forEach(d => {
                 if (!dateMap.has(d.dateStr)) return;
@@ -2057,7 +2063,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 let vB = b[currentSort.column];
                 
                 if (typeof vA === 'string') {
-                    return currentSort.direction === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+                    const sA = vA.toLowerCase();
+                    const sB = vB.toLowerCase();
+                    return currentSort.direction === 'asc' ? sA.localeCompare(sB) : sB.localeCompare(sA);
                 }
 
                 // Push non-existent data (-1) to the bottom
