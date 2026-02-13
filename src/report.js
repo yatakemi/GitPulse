@@ -1290,8 +1290,8 @@
                 
                 statsContainer.innerHTML = `
                     <span><strong>${t('label_leadtime_avg')}:</strong> ${avg.toFixed(1)}${t('label_days')}</span>
-                    <span><strong>${t('label_leadtime_median')}:</strong> ${median}${t('label_days')}</span>
-                    <span><strong>${t('label_leadtime_p90')}:</strong> ${p90}${t('label_days')}</span>
+                    <span><strong>${t('label_leadtime_median')}:</strong> ${median.toFixed(1)}${t('label_days')}</span>
+                    <span><strong>${t('label_leadtime_p90')}:</strong> ${p90.toFixed(1)}${t('label_days')}</span>
                 `;
             } else {
                 statsContainer.innerHTML = `<span>No merge data for this period</span>`;

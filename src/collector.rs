@@ -252,9 +252,9 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             
             if found_own_commit {
                 let diff_sec = commit.time().seconds() - oldest_timestamp;
-                let days = (diff_sec / (24 * 3600)) as u32;
-                if days <= 180 {
-                    lead_time_days = Some(days.max(1));
+                let days = diff_sec as f64 / (24.0 * 3600.0);
+                if days <= 180.0 {
+                    lead_time_days = Some(days);
                 }
             }
         }

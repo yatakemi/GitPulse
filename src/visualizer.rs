@@ -197,7 +197,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     let mut weekly_map: HashMap<String, WeeklyStat> = HashMap::new();
     let mut ext_map: HashMap<String, crate::model::FileTypeStat> = HashMap::new();
     let mut daily_ext_map: HashMap<(String, String), (usize, usize)> = HashMap::new();
-    let mut daily_lead_time_map: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut daily_lead_time_map: HashMap<String, Vec<f64>> = HashMap::new();
 
     // Grouping commits for merge time calculation
     let mut non_merge_commits = data.commits.clone();
@@ -341,13 +341,13 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
                 if let Some(pos) = non_merge_commits.iter().rposition(|c| c.date < commit.date) {
                     let pred = &non_merge_commits[pos];
                     let duration = commit.date.signed_duration_since(pred.date);
-                    duration.num_days().max(1) as u32
+                    duration.num_seconds() as f64 / (24.0 * 3600.0)
                 } else {
-                    1
+                    1.0
                 }
             });
 
-            if days <= 365 { // Support up to 1 year lead time
+            if days <= 365.0 { // Support up to 1 year lead time
                 merge_events.push(MergeEvent {
                     branch: branch_name,
                     author: commit.author.clone(),
@@ -409,7 +409,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
 
     let daily_lead_time_stats = daily_lead_time_map.into_iter()
         .map(|(date, days)| {
-            let avg_days = days.iter().sum::<u32>() as f64 / days.len() as f64;
+            let avg_days = days.iter().sum::<f64>() / days.len() as f64;
             crate::model::DailyLeadTimeStat { date, avg_days }
         })
         .collect();

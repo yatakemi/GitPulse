@@ -98,7 +98,7 @@ pub struct FileStat {
 pub struct MergeEvent {
     pub branch: String,
     pub author: String,
-    pub days: u32,
+    pub days: f64,
     pub date: String,
 }
 
@@ -116,5 +116,5 @@ pub struct CommitStats {
     #[serde(default)]
     pub files: Vec<usize>, // Indices into file_paths
     #[serde(default)]
-    pub lead_time_days: Option<u32>,
+    pub lead_time_days: Option<f64>,
 }
