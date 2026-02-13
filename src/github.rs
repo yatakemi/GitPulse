@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result, Context};
 use std::process::Command;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, TimeZone};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitHubReview {
@@ -22,16 +22,26 @@ pub struct GitHubPR {
     pub title: String,
     pub author: String,
     pub html_url: String,
+    #[serde(default = "default_datetime")]
     pub created_at: DateTime<Utc>,
     pub merged_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub state: String,
+    #[serde(default)]
     pub additions: usize,
+    #[serde(default)]
     pub deletions: usize,
+    #[serde(default)]
     pub changed_files: usize,
+    #[serde(default)]
     pub total_comments: usize,
     pub reviews: Vec<GitHubReview>,
     pub review_requests: Vec<String>,
     pub review_comments: Vec<GitHubReviewComment>,
+}
+
+fn default_datetime() -> DateTime<Utc> {
+    Utc.timestamp_opt(0, 0).unwrap()
 }
 
 pub struct GitHubClient {
@@ -142,7 +152,7 @@ impl GitHubClient {
         
         let mut all_prs = Vec::new();
         let mut cursor: Option<String> = None;
-        let pages_to_fetch = 5; // Fetch up to 500 PRs
+        let pages_to_fetch = 10; // Fetch up to 500 PRs (50 per page)
 
         for page in 1..=pages_to_fetch {
             if page > 1 {
@@ -155,7 +165,7 @@ impl GitHubClient {
             let query = r#"
             query($owner: String!, $name: String!, $cursor: String) {
               repository(owner: $owner, name: $name) {
-                pullRequests(last: 100, before: $cursor, states: [OPEN, MERGED, CLOSED]) {
+                pullRequests(last: 50, before: $cursor, states: [OPEN, MERGED, CLOSED]) {
                   pageInfo {
                     hasPreviousPage
                     startCursor
