@@ -1036,10 +1036,16 @@ pub const HTML_TEMPLATE: &str = r#"
                 });
             });
 
-            const sortedExts = Object.values(extMap).sort((a, b) => (b.added + b.deleted) - (a.added + a.added));
-            const topExts = sortedExts.slice(0, 10);
+            const sortedExts = Object.values(extMap).sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted));
+            const topExts = sortedExts.slice(0, 15);
 
             if (fileTypeChart) fileTypeChart.destroy();
+            
+            if (topExts.length === 0) {
+                const tbody = document.getElementById('fileTypeTableBody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #7f8c8d; padding: 20px;">No file data found for the selected filters.</td></tr>';
+                return;
+            }
             fileTypeChart = new Chart(fileTypeCtx, {
                 type: 'doughnut',
                 data: {
