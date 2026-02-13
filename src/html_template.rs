@@ -438,6 +438,13 @@ pub const HTML_TEMPLATE: &str = concat!(
                 </div>
                 <canvas id="fileTypeTrendChart"></canvas>
             </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_velocity_size_correlation">Commit Velocity vs. Size Trend</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_velocity_size" data-tooltip="Correlates commit frequency with commit size. \n\nInsights:\n1. Style Shift: If commits increase while size decreases, the team is moving towards 'Atomic Commits'.\n2. Real Productivity: If both increase, the actual delivery volume is growing.\n3. Risk: Large size with low frequency often indicates high-risk PRs that are hard to review.">i</span>
+                </div>
+                <canvas id="velocitySizeChart"></canvas>
+            </div>
             <div class="chart-box">
                 <div class="chart-title">
                     <span data-i18n="chart_share">User Share</span>

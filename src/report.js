@@ -86,8 +86,10 @@
                 insight_longlived_desc: "{value} branch(es) lived longer than 7 days.",
                 chart_lead_time_trend: "Lead Time Trend (Time Series)",
                 chart_file_type_trend: "File Type Activity Trend",
+                chart_velocity_size_correlation: "Commit Velocity vs. Size Trend",
                 tooltip_lead_time_trend: "Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.",
                 tooltip_file_type_trend: "Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.",
+                tooltip_velocity_size: "Correlates commit frequency with commit size. \n\nInsights:\n1. Style Shift: If commits increase while size decreases, the team is moving towards 'Atomic Commits' (smaller, more frequent changes).\n2. Real Productivity: If both frequency and size increase (or size stays stable), the actual delivery volume is growing.\n3. Risk Assessment: Large commit sizes with low frequency often indicate risky, 'big bang' merges that are harder to review and more likely to break things.",
                 header_active_days: "Active Days",
                 header_total_changes: "Total Changes",
                 header_reviews: "Reviews (Assigned)",
@@ -241,6 +243,7 @@
                 insight_latenight_desc: "コミットの{value}%が22時〜5時の間です。",
                 chart_ownership: "コードオーナーシップ (上位15ファイル)",
                 tooltip_ownership: "「ホットスポット（危険地帯）」と「属人化（ナレッジの孤立）」を特定し、リスクヘッジに活用します。\n\nインサイト：\n1. 孤立リスク：1人（1色）のみで占められているファイルは、その担当者が不在時にメンテナンス不能になるリスク（バス係数）が高いことを示します。知識共有やペアプロを検討してください。\n2. アーキテクチャの課題：多くの人が頻繁に変更する（複数の色が混在し、合計値が高い）ファイルは、共通基盤や「神クラス」など、設計上のボトルネックになっている可能性があります。リファクタリングによる責務の分散を検討してください。\n3. 健全性：色がバランス良く分かれているファイルは、チーム内で知識が共有されている健全な状態です。",
+                tooltip_velocity_size: "コミット頻度と1回あたりの変更量の相関を表示します。\n\nインサイト：\n1. スタイルの変化：コミット数が増え、サイズが減っている場合、チームが「アトミックなコミット（細かく頻繁な更新）」に移行していることを示します。これはレビューの質向上に寄与します。\n2. 真の生産性向上：コミット頻度とサイズの両方が向上（またはサイズを維持）している場合、実際のデリバリー量が増加しています。\n3. リスク検知：コミット頻度が低くサイズが巨大な場合、レビューが困難でリスクの高い「ビッグバン・マージ」が発生している可能性があります。",
                 label_commits: "コミット",
                 insight_isolated_title: "📋 孤立ファイル",
                 insight_isolated_desc: "{value}個のファイルが1人のみによって変更されています。",
@@ -261,6 +264,7 @@
                 insight_longlived_desc: "{value}個のブランチが7日以上存続しています。",
                 chart_lead_time_trend: "リードタイム推移 (時系列)",
                 chart_file_type_trend: "ファイル種別別アクティビティ推移",
+                chart_velocity_size_correlation: "コミット密度とサイズの推移",
                 tooltip_lead_time_trend: "デリバリー速度の変遷を追跡します。\n\nインサイト：\n1. 安定性：横ばいの線は予測可能な開発サイクルを示します。\n2. スパイク：急激な上昇は、複雑すぎるPR、レビュープロセスの停滞、または「ブロック」されたタスクの存在を示唆します。\n3. 改善：下降トレンドは、プロセス改善施策の成功を裏付けます。",
                 tooltip_file_type_trend: "ファイル種別ごとの活動量を時系列で表示します。\n\nインサイト：\n1. テストの成長：機能実装に合わせて、オレンジ色（test）のラインが追随して上昇しているかを確認します。\n2. 技術負債の解消：削除行の推移から、単なる追加だけでなく「不要なコードの削除」が継続的に行われているかを評価します。\n3. 開発バランス：新機能開発（src）と品質担保（test/config）の比率が健全かを監視します。",
                 header_active_days: "稼働日数",
@@ -427,6 +431,7 @@
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
         const leadTimeTrendCtx = document.getElementById('leadTimeTrendChart').getContext('2d');
         const fileTypeTrendCtx = document.getElementById('fileTypeTrendChart').getContext('2d');
+        const velocitySizeCtx = document.getElementById('velocitySizeChart').getContext('2d');
         const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
         const reciprocityCtx = document.getElementById('reciprocityChart').getContext('2d');
         const scatterCtx = document.getElementById('scatterChart').getContext('2d');
@@ -435,7 +440,7 @@
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, velocitySizeChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -560,6 +565,7 @@
             updateLeadTimeChart(filteredData, startDate, endDate);
             updateLeadTimeTrendChart(startDate, endDate);
             updateFileTypeTrendChart(startDate, endDate);
+            updateVelocitySizeChart(startDate, endDate);
             updateReviewActivityChart(startDate, endDate);
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
@@ -1405,6 +1411,84 @@
                     },
                     plugins: {
                         legend: { position: 'right' }
+                    }
+                }
+            });
+        }
+
+        function updateVelocitySizeChart(startDate, endDate) {
+            const dateMap = new Map();
+            let curr = new Date(startDate);
+            const end = new Date(endDate);
+            const displayDates = [];
+            while (curr <= end) {
+                const dStr = curr.toISOString().split('T')[0];
+                displayDates.push(dStr);
+                dateMap.set(dStr, { commits: 0, changes: 0 });
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            // data contains aggregated DailyStat with total_changes and commit_count
+            data.forEach(d => {
+                if (dateMap.has(d.dateStr)) {
+                    const entry = dateMap.get(d.dateStr);
+                    entry.commits += d.commit_count;
+                    entry.changes += d.total_changes;
+                }
+            });
+
+            const commitCounts = displayDates.map(d => dateMap.get(d).commits);
+            const avgSizes = displayDates.map(d => {
+                const entry = dateMap.get(d);
+                return entry.commits > 0 ? entry.changes / entry.commits : 0;
+            });
+
+            const movingCommits = calculateMovingAverage(commitCounts, 7);
+            const movingSizes = calculateMovingAverage(avgSizes, 7);
+
+            if (velocitySizeChart) velocitySizeChart.destroy();
+            velocitySizeChart = new Chart(velocitySizeCtx, {
+                type: 'line',
+                data: {
+                    labels: displayDates,
+                    datasets: [
+                        {
+                            label: 'Commit Density (Count/Day)',
+                            data: movingCommits,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            yAxisID: 'y',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Avg Commit Size (Lines/Commit)',
+                            data: movingSizes,
+                            borderColor: '#e67e22',
+                            backgroundColor: 'rgba(230, 126, 34, 0.1)',
+                            yAxisID: 'y1',
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Commits / Day' },
+                            position: 'left'
+                        },
+                        y1: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Lines / Commit' },
+                            position: 'right',
+                            grid: { drawOnChartArea: false }
+                        }
                     }
                 }
             });
