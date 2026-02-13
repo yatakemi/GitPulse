@@ -1189,6 +1189,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 tbody.appendChild(tr);
             });
         }
+
+        function updateFileTypeChart(filteredData) {
+            const extMap = {};
             filteredData.forEach(c => {
                 const total = c.added + c.deleted;
                 const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
