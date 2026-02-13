@@ -195,23 +195,36 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             revwalk.hide(commit.parent_id(0)?)?;
             
             let mut oldest_timestamp = commit.time().seconds();
+            let mut found_own_commit = false;
             let mut count = 0;
+            
+            let merge_author_email = commit.author().email().unwrap_or("").to_string();
+
             for oid_res in revwalk {
                 if let Ok(oid) = oid_res {
                     if let Ok(c) = repo.find_commit(oid) {
-                        let t = c.time().seconds();
-                        if t < oldest_timestamp {
-                            oldest_timestamp = t;
+                        // Only count commits by the same author to measure personal lead time
+                        if c.author().email().unwrap_or("") == merge_author_email {
+                            let t = c.time().seconds();
+                            if t < oldest_timestamp {
+                                oldest_timestamp = t;
+                                found_own_commit = true;
+                            }
                         }
                     }
                 }
                 count += 1;
-                if count > 2000 { break; } // Prevent infinite or too long traversals
+                if count > 2000 { break; }
             }
             
-            let diff_sec = commit.time().seconds() - oldest_timestamp;
-            let days = (diff_sec / (24 * 3600)) as u32;
-            lead_time_days = Some(days.max(1));
+            if found_own_commit {
+                let diff_sec = commit.time().seconds() - oldest_timestamp;
+                let days = (diff_sec / (24 * 3600)) as u32;
+                // Cap at 180 days to filter out extreme outliers/maintenance branches
+                if days <= 180 {
+                    lead_time_days = Some(days.max(1));
+                }
+            }
         }
 
         let (added, deleted, commit_files) = if commit.parent_count() == 0 {
