@@ -179,7 +179,12 @@
                 desc_p90: "Worst-case delivery speed. Formula: The threshold under which 90% of PRs are merged. Lowering this means fewer PRs are 'stuck'.",
                 desc_stability: "Measures predictability. Formula: Standard Deviation of Lead Time. Lower means delivery is consistent regardless of author or task.",
                 desc_rework: "Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback.",
-                desc_steps: "Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends."
+                desc_steps: "Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends.",
+                desc_review_cycles: "Review-to-Merge cycles. Calculated as the total number of review submissions per PR (multiple interactions on the same day are counted).",
+                tooltip_rework_rate: "Percentage of PRs that received a 'Request Changes' status. Indicates how often work needs to be redone.",
+                tooltip_review_depth: "Average number of comments per PR. Measures the thoroughness of the review process.",
+                tooltip_response_time: "Average time from PR creation to the very first review or comment. Measures waiting time for developers.",
+                tooltip_iterations: "Average number of review-and-fix cycles per PR. Measures the total count of formal reviews and comment batches submitted by humans. Higher values suggest complex tasks or intense communication.",
             },
             ja: {
                 title: "Git生産性レポート",
@@ -347,11 +352,11 @@
                 desc_rework_prs: "修正依頼、または2回以上のレビューサイクルを要したPRの割合",
                 desc_avg_comments: "1PRあたりの平均コメント数（議論の活発さ・レビューの丁寧さ）",
                 desc_first_reaction: "人間による最初のレビュー依頼から、最初の反応があるまでの平均経過時間",
-                desc_review_cycles: "1PRあたりのレビュー往復回数。算出式: PRごとにレビューがあった延べ日数（同日内は1回）を合計し平均化。",
+                desc_review_cycles: "1PRあたりのレビュー往復回数。算出式: PRごとに人間が行ったレビュー送信回数の合計（同日内の複数回のやり取りもカウント）。",
                 tooltip_rework_rate: "実質修正依頼率。算出式: [Changes Requested、またはレビュー往復が2回以上のPR] / [PR総数]。公式機能を使わないコメントベースの修正指示も手戻りとして捕捉する、より正確な指標です。",
                 tooltip_review_depth: "レビュー密度。算出式: [コメント総数] / [PR総数]。議論の質を測定します。極端に低い場合はレビューが形骸化しているリスクがあります。",
                 tooltip_response_time: "平均反応時間。算出式: [最初の人間によるレビューまたは承認] - [最初の人間によるレビュー依頼時刻]。開発者の『待ち時間』を測定します。",
-                tooltip_iterations: "平均イテレーション。算出式: 1つのPRがマージされるまでに発生した『レビュー→修正』の往復回数（同日の活動は1回と集計）。設計の複雑さやコミュニケーション効率を示します。",
+                tooltip_iterations: "平均イテレーション。算出式: 1つのPRがマージされるまでに人間がレビュー（承認・修正依頼・コメント）を送信した回数の平均。設計の複雑さやコミュニケーション効率を示します。",
                 tooltip_user_commits: "期間中に行われた総コミット数（マージを含む）。",
                 tooltip_user_added: "期間中に追加された総行数。",
                 tooltip_user_deleted: "期間中に削除された総行数。",
@@ -862,9 +867,9 @@
                     }
                 }
 
-                // Iterations
-                const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED' && !isBot(r.user)).map(r => r.submitted_at.split('T')[0])).size : 0;
-                const iterations = Math.max(1, distinctReviewCycles);
+                // Iterations: Count total human review submissions (not just unique days)
+                const humanReviews = pr.reviews ? pr.reviews.filter(r => !isBot(r.user)) : [];
+                const iterations = Math.max(1, humanReviews.length);
                 iterationCounts.push(iterations);
 
                 // Rework Rate (Adjusted: Changes Requested OR >1 Iteration)
@@ -2020,8 +2025,8 @@
                 const depth = getDetailedStats(depthValues);
                 
                 const iterationValues = prs.map(pr => {
-                    const cycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
-                    return Math.max(1, cycles);
+                    const humanReviews = pr.reviews ? pr.reviews.filter(r => !isBot(r.user)) : [];
+                    return Math.max(1, humanReviews.length);
                 });
                 const iters = getDetailedStats(iterationValues);
 
