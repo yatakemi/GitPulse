@@ -1943,6 +1943,13 @@ pub const HTML_TEMPLATE: &str = r#"
         }
 
         function updateUserList(filteredData) {
+            if (!filteredData) {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                filteredData = data.filter(d => 
+                    d.dateStr >= startDate && d.dateStr <= endDate && selectedUsers.has(d.author)
+                );
+            }
             const userStats = {};
             filteredData.forEach(d => {
                 if (!userStats[d.author]) {
