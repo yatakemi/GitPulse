@@ -333,7 +333,13 @@ pub const HTML_TEMPLATE: &str = r#"
 
         <!-- Impact Assessment Section -->
         <div id="impactSection" class="card" style="max-width: none; margin-bottom: 25px; border-top: 4px solid #9b59b6; display: none;">
-            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 15px;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="font-size: 18px; color: #2c3e50; margin: 0;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
+                <div id="eventSelectorContainer" style="display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size: 13px; color: #7f8c8d;">Select Initiative:</label>
+                    <select id="eventSelect" onchange="updateImpactAssessment(this.value)" style="padding: 4px 8px; font-size: 13px;"></select>
+                </div>
+            </div>
             <div style="overflow-x: auto;">
                 <table class="user-table" id="impactTable">
                     <thead>
@@ -1023,9 +1029,9 @@ pub const HTML_TEMPLATE: &str = r#"
                 
                 commitExts.forEach(ext => {
                     if (!extMap[ext]) extMap[ext] = { ext, added: 0, deleted: 0, churn: 0, commits: 0 };
-                    extMap[ext].added += Math.floor(c.added / commitExts.size);
-                    extMap[ext].deleted += Math.floor(c.deleted / commitExts.size);
-                    extMap[ext].churn += Math.floor(churn / commitExts.size);
+                    extMap[ext].added += Math.round(c.added / commitExts.size);
+                    extMap[ext].deleted += Math.round(c.deleted / commitExts.size);
+                    extMap[ext].churn += Math.round(churn / commitExts.size);
                     extMap[ext].commits += 1;
                 });
             });
@@ -1761,9 +1767,10 @@ pub const HTML_TEMPLATE: &str = r#"
             });
         }
 
-        function updateImpactAssessment() {
+        function updateImpactAssessment(eventIdx) {
             const impactSection = document.getElementById('impactSection');
             const impactTableBody = document.getElementById('impactTableBody');
+            const eventSelect = document.getElementById('eventSelect');
             
             if (!dashboardData.events || dashboardData.events.length === 0 || !dashboardData.github_prs || dashboardData.github_prs.length === 0) {
                 impactSection.style.display = 'none';
@@ -1771,11 +1778,22 @@ pub const HTML_TEMPLATE: &str = r#"
             }
 
             impactSection.style.display = 'block';
-            impactTableBody.innerHTML = '';
             
-            // Assess the most recent event
-            const event = dashboardData.events[dashboardData.events.length - 1];
+            // Initialize event selector if empty
+            if (eventSelect.options.length === 0) {
+                dashboardData.events.forEach((e, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = idx;
+                    opt.textContent = `${e.name} (${e.date})`;
+                    eventSelect.appendChild(opt);
+                });
+                eventSelect.value = dashboardData.events.length - 1; // Default to last
+                eventIdx = dashboardData.events.length - 1;
+            }
+
+            const event = dashboardData.events[eventIdx];
             const eventDate = new Date(event.date);
+            impactTableBody.innerHTML = '';
             
             // Look back up to 90 days for "Before" data to ensure we have enough samples
             const ninetyDaysBefore = new Date(eventDate);
@@ -1801,8 +1819,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 return;
             }
 
-            function getStats(prs) {
-                const leadTimes = prs.filter(pr => pr.merged_at).map(pr => (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+            function getStats(prs, periodWeeks, isBefore) {
+                // For throughput/lead-time, we care about when things were MERGED
+                const mergedPRs = prs.filter(pr => pr.merged_at && (isBefore ? new Date(pr.merged_at) < eventDate : true));
+                const leadTimes = mergedPRs.map(pr => (new Date(pr.merged_at) - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
                 leadTimes.sort((a, b) => a - b);
                 
                 const median = leadTimes.length > 0 ? leadTimes[Math.floor(leadTimes.length * 0.5)] : 0;
@@ -1811,9 +1831,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 const avg = leadTimes.reduce((a, b) => a + b, 0) / (leadTimes.length || 1);
                 const stdDev = Math.sqrt(leadTimes.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (leadTimes.length || 1));
                 
-                const mergedCount = prs.filter(pr => pr.merged_at).length;
-                const weeks = Math.max(1, (Math.max(...prs.map(pr => new Date(pr.created_at))) - Math.min(...prs.map(pr => new Date(pr.created_at)))) / (1000 * 60 * 60 * 24 * 7));
-                const throughput = mergedCount / weeks;
+                const throughput = mergedPRs.length / (periodWeeks || 1);
 
                 const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED')).length;
                 const reworkRate = (reworkCount / (prs.length || 1)) * 100;
@@ -1834,8 +1852,12 @@ pub const HTML_TEMPLATE: &str = r#"
                 return { throughput, median, p90, stdDev, reworkRate, responseTime, reviewDepth, iterations };
             }
 
-            const before = getStats(beforePRs);
-            const after = getStats(afterPRs);
+            const now = new Date();
+            const beforeWeeks = 90 / 7;
+            const afterWeeks = Math.max(1, (now - eventDate) / (1000 * 60 * 60 * 24 * 7));
+
+            const before = getStats(beforePRs, beforeWeeks, true);
+            const after = getStats(afterPRs, afterWeeks, false);
 
             const metrics = [
                 { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false },

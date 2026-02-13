@@ -324,7 +324,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
                 }
             });
 
-            if days <= 120 { // Increase limit slightly to 120 days
+            if days <= 365 { // Support up to 1 year lead time
                 merge_events.push(MergeEvent {
                     branch: branch_name,
                     author: commit.author.clone(),

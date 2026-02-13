@@ -63,13 +63,16 @@ fn process_diff(_repo: &Repository, diff: &git2::Diff, config: &crate::config::C
 }
 
 fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
-    let first_line = message.lines().next().unwrap_or("").to_lowercase();
+    let msg_lower = message.to_lowercase();
     for branch in base_branches {
         let b = branch.to_lowercase();
-        if first_line.contains(&format!("merge branch '{}'", b)) ||
-           first_line.contains(&format!("merge remote-tracking branch 'origin/{}'", b)) ||
-           (first_line.contains("merge pull request") && first_line.contains(&format!("from {}", b))) ||
-           first_line.contains(&format!("merge branch '{}' into", b))
+        // Check for standard merge, GitHub PR merge, and "Sync branch" patterns
+        if msg_lower.contains(&format!("merge branch '{}'", b)) ||
+           msg_lower.contains(&format!("merge remote-tracking branch 'origin/{}'", b)) ||
+           (msg_lower.contains("merge pull request") && msg_lower.contains(&format!("from {}", b))) ||
+           msg_lower.contains(&format!("merge branch '{}' into", b)) ||
+           msg_lower.contains(&format!("sync branch '{}'", b)) ||
+           msg_lower.contains(&format!("sync branch with '{}'", b))
         {
             return true;
         }
