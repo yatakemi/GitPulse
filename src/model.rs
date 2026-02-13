@@ -70,6 +70,7 @@ pub struct DailyStat {
     pub commit_sizes: Vec<usize>, // total_changes of each commit
     pub unrelated_switches: usize,
     pub commit_intervals: Vec<u32>, // minutes between consecutive commits
+    pub active_prs: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -119,4 +120,6 @@ pub struct CommitStats {
     pub files: Vec<usize>, // Indices into file_paths
     #[serde(default)]
     pub lead_time_days: Option<f64>,
+    #[serde(default)]
+    pub pr_number: Option<u32>,
 }

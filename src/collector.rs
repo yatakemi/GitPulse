@@ -154,10 +154,41 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
     let mut stats_list = Vec::new();
     let mut file_paths = Vec::new();
     let mut file_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut commit_to_pr: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+
+    // Pass 1.5: Pre-scan merge commits to build commit-to-PR mapping
+    println!("🔍 Mapping commits to PRs...");
+    let mut pre_walk = repo.revwalk()?;
+    pre_walk.set_sorting(Sort::TIME)?;
+    pre_walk.push_head()?;
+    for oid_result in pre_walk {
+        if let Ok(oid) = oid_result {
+            if let Ok(commit) = repo.find_commit(oid) {
+                if commit.parent_count() >= 2 {
+                    let msg = commit.message().unwrap_or("");
+                    // Extract PR number from common merge patterns: "#123", "pull request #123"
+                    if let Some(caps) = regex::Regex::new(r"#(\d+)").ok().and_then(|re| re.captures(msg)) {
+                        if let Ok(pr_num) = caps[1].parse::<u32>() {
+                            let mut side_walk = repo.revwalk()?;
+                            side_walk.push(commit.parent_id(1)?)?;
+                            side_walk.hide(commit.parent_id(0)?)?;
+                            for side_oid in side_walk {
+                                if let Ok(s_oid) = side_oid {
+                                    commit_to_pr.insert(s_oid.to_string(), pr_num);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     for oid_result in revwalk {
         let oid = oid_result?;
         let commit = repo.find_commit(oid)?;
+        let oid_str = oid.to_string();
+        let pr_number = commit_to_pr.get(&oid_str).copied();
 
         // Check if it's a merge commit
         let is_merge = commit.parent_count() > 1;
@@ -311,6 +342,7 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
             message: commit_message,
             files: commit_files,
             lead_time_days,
+            pr_number,
         });
     }
 

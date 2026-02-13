@@ -198,6 +198,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     let mut ext_map: HashMap<String, crate::model::FileTypeStat> = HashMap::new();
     let mut daily_ext_map: HashMap<(String, String), (usize, usize)> = HashMap::new();
     let mut daily_lead_time_map: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut daily_user_prs: HashMap<(String, String), HashSet<u32>> = HashMap::new();
 
     // Grouping commits for merge time calculation
     let mut non_merge_commits = data.commits.clone();
@@ -219,7 +220,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
 
         // Daily stats
         let key = (date_str.clone(), commit.author.clone());
-        let stat = daily_map.entry(key).or_insert(DailyStat {
+        let stat = daily_map.entry(key.clone()).or_insert(DailyStat {
             date: date_str.clone(),
             author: commit.author.clone(),
             added: 0,
@@ -231,6 +232,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
             commit_sizes: Vec::new(),
             unrelated_switches: 0,
             commit_intervals: Vec::new(),
+            active_prs: 0,
         });
         stat.added += commit.added;
         stat.deleted += commit.deleted;
@@ -241,6 +243,10 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
         stat.churn += churn;
         stat.hours.push(hour);
         stat.commit_sizes.push(total);
+
+        if let Some(pr_num) = commit.pr_number {
+            daily_user_prs.entry(key.clone()).or_insert(HashSet::new()).insert(pr_num);
+        }
 
         // Weekly stats (global)
         let w_stat = weekly_map.entry(week_start_str.clone()).or_insert(WeeklyStat {
@@ -452,6 +458,13 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
             }
             last_dirs = current_dirs;
             last_time = commit.date;
+        }
+    }
+
+    // Assign active PR counts
+    for ((date_str, user), prs) in daily_user_prs {
+        if let Some(stat) = daily_map.get_mut(&(date_str, user)) {
+            stat.active_prs = prs.len();
         }
     }
 

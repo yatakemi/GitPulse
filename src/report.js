@@ -81,6 +81,7 @@
                 tooltip_ctxswitch: "Distinct directories touched per day. High values indicate frequent context switching, which reduces focus and deep work productivity.",
                 label_avg_dirs: "Avg Directories / Day",
                 label_unrelated_switches: "Unrelated Context Switches",
+                label_active_prs: "Active PRs (Parallel Tasks)",
                 chart_fragmentation: "Time Fragmentation (Inter-commit Intervals)",
                 tooltip_fragmentation: "Shows the time between consecutive commits. Short intervals suggest multi-tasking or rapid context switching. Long intervals indicate periods of deep focus (Deep Work).",
                 label_minutes: "minutes",
@@ -263,6 +264,7 @@
                 tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。",
                 label_avg_dirs: "平均ディレクトリ / 日",
                 label_unrelated_switches: "無関係なコンテキストスイッチ",
+                label_active_prs: "活動PR数 (並行タスク)",
                 chart_fragmentation: "作業の断片化 (コミット間隔)",
                 tooltip_fragmentation: "連続するコミット間の経過時間を表示します。短い間隔はマルチタスクや頻繁な割り込みを示唆し、長い間隔は深い集中状態（ディープワーク）が確保できていることを示します。",
                 label_minutes: "分",
@@ -1560,6 +1562,18 @@
                             borderDash: [5, 5],
                             fill: false,
                             tension: 0.4
+                        },
+                        {
+                            label: t('label_active_prs'),
+                            data: displayDates.map(date => {
+                                const daily = filteredData.filter(d => d.dateStr === date);
+                                return daily.length > 0 ? Math.max(...daily.map(d => d.active_prs || 0)) : 0;
+                            }),
+                            type: 'bar',
+                            backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                            borderColor: 'rgba(46, 204, 113, 0.5)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
                         }
                     ]
                 },
@@ -1567,7 +1581,8 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+                        y: { beginAtZero: true, title: { display: true, text: 'Switches / Dirs' } },
+                        y1: { beginAtZero: true, position: 'right', title: { display: true, text: 'Active PRs' }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
