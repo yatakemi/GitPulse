@@ -988,6 +988,10 @@ pub const HTML_TEMPLATE: &str = r#"
             }
             return name;
         }
+
+        function isBot(user) {
+            return user && user.toLowerCase().endsWith('[bot]');
+        }
         
         const data = dashboardData.daily_stats.map(d => {
             const dateObj = new Date(d.date);
@@ -1379,10 +1383,6 @@ pub const HTML_TEMPLATE: &str = r#"
             
             const matrix = {}; // {author: {reviewer: count}}
             const scatterData = [];
-
-            function isBot(user) {
-                return user && user.toLowerCase().endsWith('[bot]');
-            }
 
             filteredPRs.forEach(pr => {
                 const author = normalizeAuthor(pr.author);
