@@ -1291,22 +1291,38 @@ pub const HTML_TEMPLATE: &str = r#"
             const matrix = {}; // {author: {reviewer: count}}
             const scatterData = [];
 
+            function isBot(user) {
+                return user && user.toLowerCase().endsWith('[bot]');
+            }
+
             filteredPRs.forEach(pr => {
                 const author = normalizeAuthor(pr.author);
                 
                 // Rework Rate
-                const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED');
+                const hasRequestChanges = pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user));
                 if (hasRequestChanges) reworkPRs.push(pr);
 
                 // Review Depth
                 allComments.push(pr.total_comments || 0);
 
-                // Response Time
+                // Response Time (More accurate logic)
+                // Start: first human assignment, Fallback: creation date
+                const startTime = pr.first_assigned_at ? new Date(pr.first_assigned_at) : new Date(pr.created_at);
+                
                 if (pr.reviews && pr.reviews.length > 0) {
-                    const firstResponse = [...pr.reviews].sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))[0];
-                    const diff = (new Date(firstResponse.submitted_at) - new Date(pr.created_at)) / (1000 * 60 * 60);
-                    if (diff > 0) {
-                        responseTimes.push(diff);
+                    const humanReviews = pr.reviews
+                        .filter(r => !isBot(r.user))
+                        .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+                    
+                    if (humanReviews.length > 0) {
+                        const firstResponse = humanReviews[0];
+                        const diff = (new Date(firstResponse.submitted_at) - startTime) / (1000 * 60 * 60);
+                        if (diff > 0) {
+                            responseTimes.push(diff);
+                        } else if (diff > -1) { 
+                            // If review was almost immediate after assignment, diff might be very small or slightly negative due to clock skew
+                            responseTimes.push(0.1); 
+                        }
                     }
                 }
 
@@ -2113,13 +2129,20 @@ pub const HTML_TEMPLATE: &str = r#"
                 
                 const throughput = mergedPRs.length / (periodWeeks || 1);
 
-                const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED')).length;
+                const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED' && !isBot(r.user))).length;
                 const reworkRate = (reworkCount / (prs.length || 1)) * 100;
 
                 const resTimeValues = prs.filter(pr => pr.reviews && pr.reviews.length > 0).map(pr => {
-                    const first = [...pr.reviews].sort((a,b) => a.submitted_at.localeCompare(b.submitted_at))[0];
-                    return (new Date(first.submitted_at) - new Date(pr.created_at)) / (1000 * 60 * 60);
-                });
+                    const startTime = pr.first_assigned_at ? new Date(pr.first_assigned_at) : new Date(pr.created_at);
+                    const humanReviews = pr.reviews
+                        .filter(r => !isBot(r.user))
+                        .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+                    
+                    if (humanReviews.length > 0) {
+                        return (new Date(humanReviews[0].submitted_at) - startTime) / (1000 * 60 * 60);
+                    }
+                    return null;
+                }).filter(v => v !== null && v > 0);
                 const res = getDetailedStats(resTimeValues);
 
                 const depthValues = prs.map(pr => pr.total_comments || 0);
@@ -2267,7 +2290,9 @@ pub const HTML_TEMPLATE: &str = r#"
                     }
                     // 2. People who have already submitted a review
                     if (pr.reviews) {
-                        pr.reviews.forEach(rev => assignedSet.add(normalizeAuthor(rev.user)));
+                        pr.reviews.forEach(rev => {
+                            if (!isBot(rev.user)) assignedSet.add(normalizeAuthor(rev.user));
+                        });
                     }
 
                     // Count each unique reviewer once per PR (excluding author)
@@ -2280,6 +2305,7 @@ pub const HTML_TEMPLATE: &str = r#"
                     // Review Comments (Points made) - Counted by comment date
                     if (pr.review_comments) {
                         pr.review_comments.forEach(comm => {
+                            if (isBot(comm.user)) return;
                             const commDate = comm.created_at.split('T')[0];
                             if (commDate >= startDate && commDate <= endDate) {
                                 const norm = normalizeAuthor(comm.user);

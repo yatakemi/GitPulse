@@ -26,6 +26,8 @@ pub struct GitHubPR {
     pub created_at: DateTime<Utc>,
     pub merged_at: Option<DateTime<Utc>>,
     #[serde(default)]
+    pub first_assigned_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub state: String,
     #[serde(default)]
     pub additions: usize,
@@ -183,6 +185,17 @@ impl GitHubClient {
                     deletions
                     changedFiles
                     comments { totalCount }
+                    timelineItems(first: 10, itemTypes: [REVIEW_REQUESTED_EVENT]) {
+                      nodes {
+                        ... on ReviewRequestedEvent {
+                          createdAt
+                          requestedReviewer {
+                            ... on User { login }
+                            ... on Team { name }
+                          }
+                        }
+                      }
+                    }
                     reviewRequests(last: 20) {
                       nodes {
                         requestedReviewer {
@@ -281,6 +294,26 @@ impl GitHubClient {
                         }
                     }
 
+                    let mut first_assigned_at = None;
+                    if let Some(timeline_nodes) = node["timelineItems"]["nodes"].as_array() {
+                        for event in timeline_nodes {
+                            let reviewer = &event["requestedReviewer"];
+                            let reviewer_name = reviewer["login"].as_str().or(reviewer["name"].as_str()).unwrap_or("");
+                            
+                            // Skip bot assignments
+                            if reviewer_name.to_lowercase().ends_with("[bot]") {
+                                continue;
+                            }
+
+                            if let Some(at_str) = event["createdAt"].as_str() {
+                                let dt = DateTime::parse_from_rfc3339(at_str).ok().map(|dt| dt.with_timezone(&Utc));
+                                if first_assigned_at.is_none() || dt < first_assigned_at {
+                                    first_assigned_at = dt;
+                                }
+                            }
+                        }
+                    }
+
                     all_prs.push(GitHubPR {
                         number: node["number"].as_u64().unwrap_or(0) as u32,
                         title: node["title"].as_str().unwrap_or("").to_string(),
@@ -288,6 +321,7 @@ impl GitHubClient {
                         html_url: node["url"].as_str().unwrap_or("").to_string(),
                         created_at: DateTime::parse_from_rfc3339(node["createdAt"].as_str().unwrap_or(""))?.with_timezone(&Utc),
                         merged_at: node["mergedAt"].as_str().and_then(|s| DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc))),
+                        first_assigned_at,
                         state: node["state"].as_str().unwrap_or("").to_string(),
                         additions: node["additions"].as_u64().unwrap_or(0) as usize,
                         deletions: node["deletions"].as_u64().unwrap_or(0) as usize,
