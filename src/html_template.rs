@@ -1646,8 +1646,25 @@ pub const HTML_TEMPLATE: &str = r#"
             if (leadChart) leadChart.destroy();
             leadChart = new Chart(leadCtx, {
                 type: 'bar',
-                data: { labels: branches.map(b => b.branch), datasets: [{ data: branches.map(b => b.days), backgroundColor: '#27ae6099' }] },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+                data: { 
+                    labels: branches.map(b => b.branch), 
+                    datasets: [{ 
+                        label: t('label_leadtime_days'),
+                        data: branches.map(b => b.days), 
+                        backgroundColor: '#27ae6099' 
+                    }] 
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: t('label_days') }
+                        }
+                    }
+                }
             });
         }
 
