@@ -838,6 +838,13 @@ pub const HTML_TEMPLATE: &str = r#"
         
         function normalizeAuthor(name) {
             if (aliases && aliases[name]) return aliases[name];
+            
+            // Handle GitHub noreply emails if name happens to be an email
+            if (name && name.endsWith('@users.noreply.github.com')) {
+                const localPart = name.split('@')[0];
+                const plusPos = localPart.indexOf('+');
+                if (plusPos !== -1) return localPart.substring(plusPos + 1);
+            }
             return name;
         }
         
@@ -1874,9 +1881,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 return { throughput, median, p90, stdDev, reworkRate, responseTime, reviewDepth, iterations };
             }
 
-            const now = new Date();
+            const now = allDates.length > 0 ? new Date(allDates[allDates.length - 1]) : new Date();
             const beforeWeeks = 90 / 7;
-            const afterWeeks = Math.max(1, (now - eventDate) / (1000 * 60 * 60 * 24 * 7));
+            const diffDays = Math.max(1, (now - eventDate) / (1000 * 60 * 60 * 24));
+            const afterWeeks = diffDays / 7;
 
             const before = getStats(beforePRs, beforeWeeks, true);
             const after = getStats(afterPRs, afterWeeks, false);

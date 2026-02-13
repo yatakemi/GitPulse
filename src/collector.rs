@@ -262,11 +262,14 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
 }
 
 fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
+    // Standardize path separators
+    let normalized_path = path.replace('\\', "/");
+    
     for pattern in exclude_patterns {
         // 0. Handle root-relative patterns (starting with /)
         if pattern.starts_with('/') {
             let root_pattern = &pattern[1..];
-            if path == root_pattern {
+            if normalized_path == root_pattern || normalized_path.starts_with(&(root_pattern.to_owned() + "/")) {
                 return true;
             }
             continue;
@@ -274,27 +277,27 @@ fn is_excluded(path: &str, exclude_patterns: &[String]) -> bool {
 
         // 1. Directory prefix
         if pattern.ends_with('/') {
-            if path.starts_with(pattern) {
+            if normalized_path.starts_with(pattern) {
                 return true;
             }
         } 
         // 2. Exact match
-        else if path == pattern {
+        else if normalized_path == *pattern {
             return true;
         }
         // 3. Filename match anywhere (if no slash in pattern)
         else if !pattern.contains('/') {
-            let filename = path.split('/').last().unwrap_or("");
-            if filename == pattern {
+            let filename = normalized_path.split('/').last().unwrap_or("");
+            if filename == *pattern {
                 return true;
             }
         }
         
         // 4. Basic glob support: handle * at the beginning or end
-        if pattern.starts_with('*') && path.ends_with(&pattern[1..]) {
+        if pattern.starts_with('*') && normalized_path.ends_with(&pattern[1..]) {
             return true;
         }
-        if pattern.ends_with('*') && path.starts_with(&pattern[..pattern.len()-1]) {
+        if pattern.ends_with('*') && normalized_path.starts_with(&pattern[..pattern.len()-1]) {
             return true;
         }
     }
