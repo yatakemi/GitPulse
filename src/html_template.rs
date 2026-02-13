@@ -1098,6 +1098,7 @@ pub const HTML_TEMPLATE: &str = r#"
                 });
             });
 
+            // Sort by total changes (descending)
             const sortedExts = Object.values(extMap).sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted));
             const topExts = sortedExts.slice(0, 15);
 
