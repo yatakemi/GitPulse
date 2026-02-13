@@ -583,6 +583,13 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
+                    <span data-i18n="chart_ctx_switch_trend">Context Switch & Fragmentation Trend</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_ctx_trend" data-tooltip="Tracks how multi-tasking and focus time evolve over time. \n\nInsights:\n1. High Switches (Bars): Indicate days with heavy multi-tasking across unrelated modules.\n2. Low Intervals (Line): Short average time between commits suggests fragmented work due to meetings or interruptions.\n3. Deep Work: Low switches and long intervals indicate periods of successful deep focus.">i</span>
+                </div>
+                <canvas id="ctxSwitchTrendChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
                     <span data-i18n="chart_ctxswitch">Context Switching (Daily Directory Diversity)</span>
                     <span class="info-icon" data-i18n-tooltip="tooltip_ctxswitch" data-tooltip="1日に触れたディレクトリ数。高い値は頻繁なコンテキストスイッチが発生していることを示し、集中力とディープワークの生産性を低下させます。">i</span>
                 </div>

@@ -92,8 +92,10 @@
                 chart_lead_time_trend: "Lead Time Trend (Time Series)",
                 chart_file_type_trend: "File Type Activity Trend",
                 chart_velocity_size_correlation: "Commit Velocity vs. Size Trend",
+                chart_ctx_switch_trend: "Context Switch & Fragmentation Trend",
                 tooltip_lead_time_trend: "Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.",
                 tooltip_file_type_trend: "Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.",
+                tooltip_ctx_trend: "Tracks how multi-tasking and focus time evolve over time. \n\nInsights:\n1. Multi-tasking (Bars): High 'Unrelated Switches' mean the developer jumped between different modules frequently.\n2. Fragmentation (Line): A decreasing 'Avg Commit Interval' indicates work being split by meetings or constant context shifts.\n3. Deep Work Goal: Aim for fewer unrelated switches and longer intervals between commits.",
                 tooltip_velocity_size: "Correlates commit frequency with commit size. \n\nInsights:\n1. Style Shift: If commits increase while size decreases, the team is moving towards 'Atomic Commits' (smaller, more frequent changes).\n2. Real Productivity: If both frequency and size increase (or size stays stable), the actual delivery volume is growing.\n3. Risk Assessment: Large commit sizes with low frequency often indicate risky, 'big bang' merges that are harder to review and more likely to break things.",
                 header_active_days: "Active Days",
                 header_total_changes: "Total Changes",
@@ -231,6 +233,7 @@
                 tooltip_leadtime: "マージされたブランチの寿命。短いほど迅速な価値提供ができていることを示します。7日を超えるブランチが多い場合、PRの分割やレビュープロセスの見直しが必要です。",
                 tooltip_lead_time_trend: "デリバリー速度の「安定性」を追跡します。\n\nインサイト：\n1. 安定性：横ばいの線は予測可能な開発サイクルを示します。\n2. スパイク：急激な上昇は、複雑すぎる PR、仕様の不備による手戻り、またはレビューの滞留を意味します。\n3. 改善：下降トレンドは、プロセスの小型化や CI/CD の改善効果を証明します。",
                 tooltip_file_type_trend: "ファイル種別ごとの活動量を時系列で表示します。\n\nインサイト：\n1. テストの成長：機能実装に合わせて、オレンジ色（test）のラインが追随して上昇しているかを確認します。\n2. 技術負債の解消：削除行の推移から、単なる追加だけでなく「不要なコードの削除」が継続的に行われているかを評価します。\n3. 開発バランス：新機能開発（src）と品質担保（test/config）の比率が健全かを監視します。",
+                tooltip_ctx_trend: "マルチタスクと集中時間の変遷を追跡します。\n\nインサイト：\n1. マルチタスク（棒グラフ）：『無関係なスイッチ』が高い日は、関連性の低い複数のモジュールを並行して触っており、脳の負荷が高い状態です。\n2. 断片化（折れ線グラフ）：『平均コミット間隔』が短い時期は、会議や割り込みにより作業が細切れになっている可能性があります。\n3. 理想の状態：スイッチ数が少なく、コミット間隔が長い期間は、深い集中（ディープワーク）が確保できています。",
                 tooltip_ctxswitch: "1日に触れたディレクトリ数。高い値は、1人の開発者が複数のコンテキストを頻繁に行き来していることを示します。これは集中力を削ぎ、ディープワークの生産性を低下させる要因になります。",
                 tooltip_forecast: "過去4週間のベロシティに基づき将来の出力を予測します。点線は予測トレンドです。『残りの作業量』を入力すると、現在のペースに基づいた完了予定日が表示されます。",
                 label_mod_count: "変更回数",
@@ -287,8 +290,10 @@
                 chart_lead_time_trend: "リードタイム推移 (時系列)",
                 chart_file_type_trend: "ファイル種別別アクティビティ推移",
                 chart_velocity_size_correlation: "コミット密度とサイズの推移",
+                chart_ctx_switch_trend: "コンテキストスイッチと断片化の推移",
                 tooltip_lead_time_trend: "デリバリー速度の変遷を追跡します。\n\nインサイト：\n1. 安定性：横ばいの線は予測可能な開発サイクルを示します。\n2. スパイク：急激な上昇は、複雑すぎるPR、レビュープロセスの停滞、または「ブロック」されたタスクの存在を示唆します。\n3. 改善：下降トレンドは、プロセス改善施策の成功を裏付けます。",
                 tooltip_file_type_trend: "ファイル種別ごとの活動量を時系列で表示します。\n\nインサイト：\n1. テストの成長：機能実装に合わせて、オレンジ色（test）のラインが追随して上昇しているかを確認します。\n2. 技術負債の解消：削除行の推移から、単なる追加だけでなく「不要なコードの削除」が継続的に行われているかを評価します。\n3. 開発バランス：新機能開発（src）と品質担保（test/config）の比率が健全かを監視します。",
+                tooltip_ctx_trend: "マルチタスクと集中時間の変遷を追跡します。\n\nインサイト：\n1. マルチタスク（棒グラフ）：『無関係なスイッチ』が高い日は、関連性の低い複数のモジュールを並行して触っており、脳の負荷が高い状態です。\n2. 断片化（折れ線グラフ）：『平均コミット間隔』が短い時期は、会議や割り込みにより作業が細切れになっている可能性があります。\n3. 理想の状態：スイッチ数が少なく、コミット間隔が長い期間は、深い集中（ディープワーク）が確保できています。",
                 header_active_days: "稼働日数",
                 header_total_changes: "合計変更",
                 header_author: "担当者",
@@ -468,9 +473,10 @@
         const leadDistCtx = document.getElementById('leadDistChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const fragmentationCtx = document.getElementById('fragmentationChart').getContext('2d');
+        const ctxSwitchTrendCtx = document.getElementById('ctxSwitchTrendChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, velocitySizeChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, fragmentationChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, durChart, healthChart, ownerChart, leadChart, leadTimeTrendChart, fileTypeTrendChart, velocitySizeChart, reviewActivityChart, reciprocityChart, scatterChart, resDistChart, leadDistChart, ctxChart, fragmentationChart, ctxSwitchTrendChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -596,6 +602,7 @@
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
+            updateContextSwitchTrendChart(filteredData, startDate, endDate);
             updateFragmentationChart(filteredData, startDate, endDate);
             updateFileTypeChart();
             updateIsolatedFiles(filteredData);
@@ -1612,6 +1619,74 @@
                     scales: {
                         y: { beginAtZero: true, title: { display: true, text: 'Switches / Dirs' } },
                         y1: { beginAtZero: true, position: 'right', title: { display: true, text: 'Active PRs' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function updateContextSwitchTrendChart(filteredData, startDate, endDate) {
+            const dateMap = new Map();
+            let curr = new Date(startDate);
+            const end = new Date(endDate);
+            const displayDates = [];
+            while (curr <= end) {
+                const dStr = curr.toISOString().split('T')[0];
+                displayDates.push(dStr);
+                dateMap.set(dStr, { switches: 0, intervals: [] });
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            filteredData.forEach(d => {
+                if (dateMap.has(d.dateStr)) {
+                    const entry = dateMap.get(d.dateStr);
+                    entry.switches += (d.unrelated_switches || 0);
+                    if (d.commit_intervals) {
+                        entry.intervals.push(...d.commit_intervals);
+                    }
+                }
+            });
+
+            const dailySwitches = displayDates.map(d => dateMap.get(d).switches);
+            const dailyAvgIntervals = displayDates.map(d => {
+                const ints = dateMap.get(d).intervals;
+                return ints.length > 0 ? ints.reduce((a, b) => a + b, 0) / ints.length : 0;
+            });
+
+            const movingSwitches = calculateMovingAverage(dailySwitches, 7);
+            const movingIntervals = calculateMovingAverage(dailyAvgIntervals, 7);
+
+            if (ctxSwitchTrendChart) ctxSwitchTrendChart.destroy();
+            ctxSwitchTrendChart = new Chart(ctxSwitchTrendCtx, {
+                type: 'bar',
+                data: {
+                    labels: displayDates,
+                    datasets: [
+                        {
+                            label: t('label_unrelated_switches'),
+                            data: movingSwitches,
+                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Avg Commit Interval (min)',
+                            data: movingIntervals,
+                            type: 'line',
+                            borderColor: '#1abc9c',
+                            backgroundColor: 'transparent',
+                            yAxisID: 'y1',
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Unrelated Switches' }, position: 'left' },
+                        y1: { beginAtZero: true, title: { display: true, text: 'Minutes between Commits' }, position: 'right', grid: { drawOnChartArea: false } }
                     }
                 }
             });
