@@ -1515,58 +1515,78 @@
                 if (distBox) distBox.style.display = 'none';
                 return;
             }
-            if (distBox) distBox.style.display = 'grid'; // Note: grid instead of block
+            if (distBox) distBox.style.display = 'grid';
 
-            function createHistogram(data, bucketSize) {
-                const bins = {};
+            function createCustomHistogram(data, buckets) {
+                const bins = buckets.map(b => ({ label: b.label, count: 0, min: b.min, max: b.max }));
                 data.forEach(v => {
-                    const bin = Math.floor(v / bucketSize) * bucketSize;
-                    bins[bin] = (bins[bin] || 0) + 1;
+                    const bin = bins.find(b => v >= b.min && v < b.max);
+                    if (bin) bin.count++;
+                    else if (v >= buckets[buckets.length - 1].max) bins[bins.length - 1].count++;
                 });
                 return bins;
             }
 
-            const resBins = createHistogram(resTimes, 4); 
-            const resLabels = Object.keys(resBins).sort((a,b) => a-b);
+            // Response Time Buckets (Hours)
+            const resBuckets = [
+                { label: '<1h', min: 0, max: 1 },
+                { label: '1-4h', min: 1, max: 4 },
+                { label: '4-8h', min: 4, max: 8 },
+                { label: '8-24h', min: 8, max: 24 },
+                { label: '1-3d', min: 24, max: 72 },
+                { label: '3-7d', min: 72, max: 168 },
+                { label: '>7d', min: 168, max: Infinity }
+            ];
+
+            const resBins = createCustomHistogram(resTimes, resBuckets);
 
             if (resDistChart) resDistChart.destroy();
             resDistChart = new Chart(resDistCtx, {
                 type: 'bar',
                 data: {
-                    labels: resLabels,
+                    labels: resBins.map(b => b.label),
                     datasets: [{
                         label: t('chart_res_dist'),
-                        data: resLabels.map(l => resBins[l]),
+                        data: resBins.map(b => b.count),
                         backgroundColor: 'rgba(230, 126, 34, 0.6)'
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: { title: { display: true, text: 'Hours' } },
                         y: { beginAtZero: true, title: { display: true, text: t('label_mod_count') } }
                     }
                 }
             });
 
-            const leadBins = createHistogram(leadTimes, 1);
-            const leadLabels = Object.keys(leadBins).sort((a,b) => a-b);
+            // Lead Time Buckets (Days)
+            const leadBuckets = [
+                { label: '<1d', min: 0, max: 1 },
+                { label: '1-3d', min: 1, max: 3 },
+                { label: '3-7d', min: 3, max: 7 },
+                { label: '7-14d', min: 7, max: 14 },
+                { label: '14-30d', min: 14, max: 30 },
+                { label: '>30d', min: 30, max: Infinity }
+            ];
+
+            const leadBins = createCustomHistogram(leadTimes, leadBuckets);
 
             if (leadDistChart) leadDistChart.destroy();
             leadDistChart = new Chart(leadDistCtx, {
                 type: 'bar',
                 data: {
-                    labels: leadLabels,
+                    labels: leadBins.map(b => b.label),
                     datasets: [{
                         label: t('chart_lead_dist'),
-                        data: leadLabels.map(l => leadBins[l]),
+                        data: leadBins.map(b => b.count),
                         backgroundColor: 'rgba(52, 152, 219, 0.6)'
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: { title: { display: true, text: 'Days' } },
                         y: { beginAtZero: true, title: { display: true, text: t('label_mod_count') } }
                     }
                 }

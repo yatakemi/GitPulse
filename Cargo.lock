@@ -432,7 +432,7 @@ dependencies = [
 
 [[package]]
 name = "gitpulse"
-version = "0.13.80"
+version = "0.13.81"
 dependencies = [
  "anyhow",
  "chrono",
