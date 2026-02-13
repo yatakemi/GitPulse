@@ -62,8 +62,9 @@ fn process_diff(_repo: &Repository, diff: &git2::Diff, config: &crate::config::C
     Ok((added, deleted, commit_files.into_iter().collect()))
 }
 
-fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
+fn is_sync_merge(message: &str, base_branches: &[String], current_branch: &str) -> bool {
     let msg_lower = message.to_lowercase();
+    let current_lower = current_branch.to_lowercase();
     
     // Always exclude remote-tracking branch merges as they are typically sync noise
     if msg_lower.contains("merge remote-tracking branch") || msg_lower.contains("merge branch 'origin'") {
@@ -72,7 +73,13 @@ fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
 
     for branch in base_branches {
         let b = branch.to_lowercase();
-        // Check for standard merge, GitHub PR merge, and "Sync branch" patterns
+        
+        // If the merge is INTO a base branch that is NOT the current branch, it's noise from another branch's history
+        if b != current_lower && (msg_lower.contains(&format!("into {}", b)) || msg_lower.contains(&format!("into '{}'", b))) {
+            return true;
+        }
+
+        // Check for standard merge, GitHub PR merge, and "Sync branch" patterns (FROM a base branch)
         if msg_lower.contains(&format!("merge branch '{}'", b)) ||
            msg_lower.contains(&format!("merge remote-tracking branch 'origin/{}'", b)) ||
            (msg_lower.contains("merge pull request") && msg_lower.contains(&format!("from {}", b))) ||
@@ -176,8 +183,8 @@ pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::confi
         let commit_message_raw = commit.message().unwrap_or("");
         let commit_message = commit_message_raw.lines().next().unwrap_or("").to_string();
         
-        // Skip merges from base branches (sync merges)
-        if is_merge && is_sync_merge(commit_message_raw, &config.base_branches) {
+        // Skip merges from/into other base branches (sync merges or external events)
+        if is_merge && is_sync_merge(commit_message_raw, &config.base_branches, branch_name) {
             continue;
         }
 
