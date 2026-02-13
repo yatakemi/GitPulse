@@ -36,11 +36,14 @@ pub const HTML_TEMPLATE: &str = concat!(
         .diff.neutral { color: #95a5a6; }
 
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-bottom: 30px; }
-        .chart-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 400px; position: relative; }
+        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; }
         .chart-box.full-width { grid-column: 1 / -1; height: 500px; }
-        .chart-title { position: absolute; top: 15px; left: 20px; font-size: 16px; font-weight: 600; color: #34495e; z-index: 10; display: flex; align-items: center; gap: 8px; width: calc(100% - 40px); }
+        .chart-title { position: relative; margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #34495e; display: flex; align-items: center; gap: 8px; width: 100%; flex-shrink: 0; }
         .chart-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
         .chart-controls select { padding: 4px 8px; font-size: 12px; height: auto; }
+        
+        .flex-row { display: flex; gap: 25px; flex-wrap: wrap; margin-bottom: 25px; }
+        .flex-row .chart-box { flex: 1; min-width: 450px; }
         
         /* Tooltip Styles */
         .info-icon {
@@ -561,7 +564,7 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
             <!-- Distribution Analysis -->
             <div id="distBox" style="display: none; margin-bottom: 25px;">
-                <div class="charts-grid" style="margin-bottom: 0;">
+                <div class="flex-row" style="margin-bottom: 0;">
                     <div class="chart-box">
                         <div class="chart-title">
                             <span data-i18n="chart_res_dist">Response Time Distribution</span>
