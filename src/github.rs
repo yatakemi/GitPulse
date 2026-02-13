@@ -11,12 +11,22 @@ pub struct GitHubReview {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GitHubReviewComment {
+    pub user: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitHubPR {
     pub number: u32,
     pub title: String,
     pub author: String,
     pub html_url: String,
+    pub created_at: DateTime<Utc>,
+    pub merged_at: Option<DateTime<Utc>>,
     pub reviews: Vec<GitHubReview>,
+    pub review_requests: Vec<String>,
+    pub review_comments: Vec<GitHubReviewComment>,
 }
 
 pub struct GitHubClient {
@@ -150,11 +160,31 @@ impl GitHubClient {
                     title
                     url
                     author { login }
+                    createdAt
+                    mergedAt
+                    reviewRequests(last: 20) {
+                      nodes {
+                        requestedReviewer {
+                          ... on User { login }
+                          ... on Team { name }
+                        }
+                      }
+                    }
                     reviews(last: 50) {
                       nodes {
                         author { login }
                         state
                         submittedAt
+                      }
+                    }
+                    reviewThreads(last: 50) {
+                      nodes {
+                        comments(first: 1) {
+                          nodes {
+                            author { login }
+                            createdAt
+                          }
+                        }
                       }
                     }
                   }
@@ -200,12 +230,46 @@ impl GitHubClient {
                         }
                     }
 
+                    let mut review_requests = Vec::new();
+                    if let Some(req_nodes) = node["reviewRequests"]["nodes"].as_array() {
+                        for req_node in req_nodes {
+                            if let Some(login) = req_node["requestedReviewer"]["login"].as_str() {
+                                review_requests.push(login.to_string());
+                            } else if let Some(name) = req_node["requestedReviewer"]["name"].as_str() {
+                                review_requests.push(name.to_string());
+                            }
+                        }
+                    }
+
+                    let mut review_comments = Vec::new();
+                    if let Some(thread_nodes) = node["reviewThreads"]["nodes"].as_array() {
+                        for thread_node in thread_nodes {
+                            if let Some(comment_nodes) = thread_node["comments"]["nodes"].as_array() {
+                                if let Some(first_comment) = comment_nodes.get(0) {
+                                    if let (Some(author), Some(created_at)) = (
+                                        first_comment["author"]["login"].as_str(),
+                                        first_comment["createdAt"].as_str()
+                                    ) {
+                                        review_comments.push(GitHubReviewComment {
+                                            user: author.to_string(),
+                                            created_at: DateTime::parse_from_rfc3339(created_at)?.with_timezone(&Utc),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     all_prs.push(GitHubPR {
                         number: node["number"].as_u64().unwrap_or(0) as u32,
                         title: node["title"].as_str().unwrap_or("").to_string(),
                         author: node["author"]["login"].as_str().unwrap_or("").to_string(),
                         html_url: node["url"].as_str().unwrap_or("").to_string(),
+                        created_at: DateTime::parse_from_rfc3339(node["createdAt"].as_str().unwrap_or(""))?.with_timezone(&Utc),
+                        merged_at: node["mergedAt"].as_str().and_then(|s| DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc))),
                         reviews,
+                        review_requests,
+                        review_comments,
                     });
                 }
             }

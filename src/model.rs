@@ -19,6 +19,7 @@ pub struct DashboardData {
     pub forecast: Option<ForecastData>,
     pub github_prs: Vec<GitHubPR>,
     pub file_paths: Vec<String>,
+    pub commits: Vec<CommitStats>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

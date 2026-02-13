@@ -347,5 +347,6 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData) -> crate::model::Da
         forecast,
         github_prs: data.github_prs.clone(),
         file_paths: data.file_paths.clone(),
+        commits: data.commits.clone(),
     }
 }

@@ -358,6 +358,13 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
             <div class="chart-box full-width">
                 <div class="chart-title">
+                    <span>Review Activity (Comments Given)</span>
+                    <span class="info-icon" data-tooltip="Number of review comments (initial thread comments) given over time.">i</span>
+                </div>
+                <canvas id="reviewActivityChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
                     <span data-i18n="chart_ctxswitch">Context Switching (Daily Directory Diversity)</span>
                     <span class="info-icon" data-i18n-tooltip="tooltip_ctxswitch" data-tooltip="Number of distinct directories touched per day.">i</span>
                 </div>
@@ -378,17 +385,22 @@ pub const HTML_TEMPLATE: &str = r#"
                             <th data-i18n="header_deleted">Deleted</th>
                             <th data-i18n="header_total_changes">Total Changes</th>
                             <th data-i18n="sum_churn">Churn Rate</th>
-                            <th data-i18n="header_reviews">Reviews (Given)</th>
-                            <th data-i18n="header_avg_lead_time">Avg Lead Time</th>
+                            <th data-i18n="header_reviews">Reviews (Assigned)</th>
+                            <th data-i18n="header_comments">Review Comments</th>
+                            <th data-i18n="header_review_lead_time">Review Lead Time</th>
+                            <th data-i18n="header_avg_lead_time">Branch Lead Time</th>
                             <th data-i18n="header_active_days">Active Days</th>
-                            <th data-i18n="header_top_dirs">Top Dirs</th>
-                            <th>Top Files</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
                         <!-- Populated by JS -->
                     </tbody>
                 </table>
+            </div>
+            <!-- Details section for commits -->
+            <div id="commitDetails" style="margin-top: 25px; display: none; background: #fdfdfd; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
+                <h3 id="detailsTitle" style="font-size: 16px; margin-top: 0;">Commit Details</h3>
+                <div id="detailsContent" style="max-height: 400px; overflow-y: auto;"></div>
             </div>
         </div>
     </div>
@@ -481,9 +493,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_longlived_desc: "{value} branch(es) lived longer than 7 days.",
                 header_active_days: "Active Days",
                 header_total_changes: "Total Changes",
-                header_reviews: "Reviews (Given)",
+                header_reviews: "Reviews (Assigned)",
+                header_comments: "Review Comments",
+                header_review_lead_time: "Review Lead Time",
                 header_top_dirs: "Top Dirs",
-                header_avg_lead_time: "Avg Lead Time",
+                header_avg_lead_time: "Branch Lead Time",
                 btn_select_all: "Select All",
                 title_user_selection: "Filter by Users",
                 title_predictive_analysis: "Predictive Analysis (BETA)",
@@ -580,9 +594,11 @@ pub const HTML_TEMPLATE: &str = r#"
                 insight_longlived_desc: "{value}個のブランチが7日以上存続しています。",
                 header_active_days: "稼働日数",
                 header_total_changes: "合計変更",
-                header_reviews: "レビュー回数",
+                header_reviews: "レビュー割当回数",
+                header_comments: "指摘コメント数",
+                header_review_lead_time: "レビューリードタイム",
                 header_top_dirs: "得意ディレクトリ",
-                header_avg_lead_time: "平均リードタイム",
+                header_avg_lead_time: "ブランチリードタイム",
                 btn_select_all: "すべて選択",
                 title_user_selection: "ユーザー別フィルター",
                 title_predictive_analysis: "予測分析（ベータ版）",
@@ -647,10 +663,11 @@ pub const HTML_TEMPLATE: &str = r#"
         const healthCtx = document.getElementById('healthTrendChart').getContext('2d');
         const ownerCtx = document.getElementById('ownershipChart').getContext('2d');
         const leadCtx = document.getElementById('leadTimeChart').getContext('2d');
+        const reviewActivityCtx = document.getElementById('reviewActivityChart').getContext('2d');
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, ctxChart, forecastChart;
+        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -761,10 +778,67 @@ pub const HTML_TEMPLATE: &str = r#"
             updateHealthTrendChart(filteredData, startDate, endDate);
             updateOwnershipChart(filteredData, startDate, endDate);
             updateLeadTimeChart(filteredData, startDate, endDate);
+            updateReviewActivityChart(startDate, endDate);
             updateContextSwitchChart(filteredData, startDate, endDate);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
             updatePredictiveDashboard(filteredData);
+        }
+
+        function updateReviewActivityChart(startDate, endDate) {
+            const dateMap = new Map();
+            let curr = new Date(startDate);
+            const end = new Date(endDate);
+            const displayDates = [];
+            while (curr <= end) {
+                const dStr = curr.toISOString().split('T')[0];
+                displayDates.push(dStr);
+                dateMap.set(dStr, {});
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            if (dashboardData.github_prs) {
+                dashboardData.github_prs.forEach(pr => {
+                    if (pr.review_comments) {
+                        pr.review_comments.forEach(comm => {
+                            const date = comm.created_at.split('T')[0];
+                            if (dateMap.has(date)) {
+                                const norm = normalizeAuthor(comm.user);
+                                if (selectedUsers.has(norm)) {
+                                    const daily = dateMap.get(date);
+                                    daily[norm] = (daily[norm] || 0) + 1;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            const datasets = Array.from(selectedUsers).map(user => ({
+                label: user,
+                data: displayDates.map(date => dateMap.get(date)[user] || 0),
+                borderColor: stringToColor(user),
+                backgroundColor: stringToColor(user) + '33',
+                tension: 0.1,
+                fill: false
+            }));
+
+            if (reviewActivityChart) reviewActivityChart.destroy();
+            reviewActivityChart = new Chart(reviewActivityCtx, {
+                type: 'line',
+                data: { labels: displayDates, datasets },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { stepSize: 1 },
+                            title: { display: true, text: 'Comments Given' }
+                        } 
+                    } 
+                }
+            });
         }
 
         function updateSummary(currentData, metric, startDate, endDate) {
@@ -1236,7 +1310,12 @@ pub const HTML_TEMPLATE: &str = r#"
         function updateUserList(filteredData) {
             const userStats = {};
             filteredData.forEach(d => {
-                if (!userStats[d.author]) userStats[d.author] = { commits: 0, added: 0, deleted: 0, churn: 0, activeDays: new Set(), dirs: {}, files: {}, leadTimes: [], reviewsGiven: 0 };
+                if (!userStats[d.author]) {
+                    userStats[d.author] = { 
+                        commits: 0, added: 0, deleted: 0, churn: 0, activeDays: new Set(), 
+                        reviewsAssigned: 0, commentsGiven: 0, reviewLeadTimes: [], leadTimes: [] 
+                    };
+                }
                 userStats[d.author].commits += d.commit_count;
                 userStats[d.author].added += d.added;
                 userStats[d.author].deleted += d.deleted;
@@ -1244,37 +1323,63 @@ pub const HTML_TEMPLATE: &str = r#"
                 userStats[d.author].activeDays.add(d.dateStr);
             });
             const currentUsers = new Set(Object.keys(userStats));
-            dashboardData.file_stats.forEach(fs => { 
-                if (currentUsers.has(fs.author)) { 
-                    const path = filePaths[fs.file_idx]; 
-                    if (path) { 
-                        // Dirs: up to 2 levels (e.g. src/core)
-                        const parts = path.split('/');
-                        const dir = parts.length > 1 ? parts.slice(0, 2).join('/') : '(root)';
-                        userStats[fs.author].dirs[dir] = (userStats[fs.author].dirs[dir] || 0) + fs.count;
-                        
-                        // Files: full path
-                        userStats[fs.author].files[path] = (userStats[fs.author].files[path] || 0) + fs.count;
-                    } 
-                } 
+
+            // Aggregate Branch Lead Time from merge events
+            dashboardData.merge_events.forEach(me => {
+                if (currentUsers.has(me.author)) {
+                    userStats[me.author].leadTimes.push(me.days);
+                }
             });
-            dashboardData.merge_events.forEach(me => { if (currentUsers.has(me.author)) userStats[me.author].leadTimes.push(me.days); });
-            
-            // Aggregate GitHub Reviews using aliases AND date filters
+
+            // Aggregate GitHub PR data using date filters
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
 
             if (dashboardData.github_prs && dashboardData.github_prs.length > 0) {
                 dashboardData.github_prs.forEach(pr => {
-                    pr.reviews.forEach(rev => { 
-                        const revDate = rev.submitted_at.split('T')[0];
-                        if (revDate >= startDate && revDate <= endDate) {
-                            const normReviewer = normalizeAuthor(rev.user);
-                            if (userStats[normReviewer]) {
-                                userStats[normReviewer].reviewsGiven++;
+                    // Review Requests (Assigned count)
+                    if (pr.review_requests) {
+                        pr.review_requests.forEach(req => {
+                            const norm = normalizeAuthor(req);
+                            if (userStats[norm]) {
+                                const prDate = pr.created_at.split('T')[0];
+                                if (prDate >= startDate && prDate <= endDate) {
+                                    userStats[norm].reviewsAssigned++;
+                                }
+                            }
+                        });
+                    }
+
+                    // Review Comments (Points made)
+                    if (pr.review_comments) {
+                        pr.review_comments.forEach(comm => {
+                            const commDate = comm.created_at.split('T')[0];
+                            if (commDate >= startDate && commDate <= endDate) {
+                                const norm = normalizeAuthor(comm.user);
+                                if (userStats[norm]) {
+                                    userStats[norm].commentsGiven++;
+                                }
+                            }
+                        });
+                    }
+
+                    // Review Lead Time (First comment to Merge)
+                    if (pr.merged_at && pr.review_comments && pr.review_comments.length > 0) {
+                        const prDate = pr.created_at.split('T')[0];
+                        if (prDate >= startDate && prDate <= endDate) {
+                            const sortedComms = [...pr.review_comments].sort((a, b) => a.created_at.localeCompare(b.created_at));
+                            const firstComm = new Date(sortedComms[0].created_at);
+                            const mergedAt = new Date(pr.merged_at);
+                            const diffMs = mergedAt - firstComm;
+                            if (diffMs > 0) {
+                                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                                const prAuthor = normalizeAuthor(pr.author);
+                                if (userStats[prAuthor]) {
+                                    userStats[prAuthor].reviewLeadTimes.push(diffDays);
+                                }
                             }
                         }
-                    });
+                    }
                 });
             }
 
@@ -1282,16 +1387,14 @@ pub const HTML_TEMPLATE: &str = r#"
             tbody.innerHTML = '';
             Object.entries(userStats).sort((a, b) => b[1].commits - a[1].commits).forEach(([user, s]) => {
                 const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.onclick = () => showCommitDetails(user);
+                
                 const totalChanges = s.added + s.deleted;
                 const churnRate = totalChanges > 0 ? ((s.churn / totalChanges) * 100).toFixed(1) : '0.0';
-                
-                const sortedDirs = Object.entries(s.dirs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(d => d[0]).join(', ');
-                
-                const topFiles = Object.entries(s.files)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(f => `<span title="${f[0]}">${f[0].split('/').pop()}</span>`)
-                    .join(', ');
+                const avgReviewLeadTime = s.reviewLeadTimes && s.reviewLeadTimes.length > 0 
+                    ? (s.reviewLeadTimes.reduce((a, b) => a + b, 0) / s.reviewLeadTimes.length).toFixed(1) + 'd'
+                    : '-';
 
                 tr.innerHTML = `
                     <td><div class="user-info"><div class="user-avatar" style="background-color: ${stringToColor(user)}"></div><strong>${user}</strong></div></td>
@@ -1300,14 +1403,68 @@ pub const HTML_TEMPLATE: &str = r#"
                     <td><span class="badge deleted">-${s.deleted.toLocaleString()}</span></td>
                     <td>${totalChanges.toLocaleString()}</td>
                     <td><span class="badge" style="background: ${s.churn > (totalChanges * 0.5) ? '#fdf2f2' : '#f8f9fa'}; color: ${s.churn > (totalChanges * 0.5) ? '#e74c3c' : '#666'}">${churnRate}%</span></td>
-                    <td>${s.reviewsGiven}</td>
-                    <td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) : '-'}</td>
+                    <td>${s.reviewsAssigned}</td>
+                    <td>${s.commentsGiven}</td>
+                    <td>${avgReviewLeadTime}</td>
+                    <td>${s.leadTimes.length > 0 ? (s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(1) + 'd' : '-'}</td>
                     <td>${s.activeDays.size}</td>
-                    <td style="font-size: 11px; color: #666;">${sortedDirs}</td>
-                    <td style="font-size: 11px; color: #666;">${topFiles || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function showCommitDetails(user) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const detailsDiv = document.getElementById('commitDetails');
+            const detailsContent = document.getElementById('detailsContent');
+            const detailsTitle = document.getElementById('detailsTitle');
+            
+            // Filter raw commits from dashboardData
+            const userCommits = dashboardData.commits.filter(c => {
+                const norm = normalizeAuthor(c.author);
+                const date = c.date.split('T')[0];
+                return norm === user && date >= startDate && date <= endDate;
+            }).sort((a, b) => b.date.localeCompare(a.date));
+
+            detailsTitle.innerHTML = `Commits by <strong>${user}</strong> (${userCommits.length})`;
+            detailsDiv.style.display = 'block';
+            
+            if (userCommits.length === 0) {
+                detailsContent.innerHTML = '<p>No commits found for the selected period.</p>';
+                return;
+            }
+
+            detailsContent.innerHTML = `
+                <table class="user-table" style="font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th>Hash</th>
+                            <th>Date</th>
+                            <th>Message</th>
+                            <th>Added</th>
+                            <th>Deleted</th>
+                            <th>Files</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${userCommits.map(c => `
+                            <tr>
+                                <td style="font-family: monospace; color: #7f8c8d;">${c.hash.substring(0, 7)}</td>
+                                <td style="white-space: nowrap;">${c.date.split('T')[0]}</td>
+                                <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;" title="${c.message}">${c.message}</td>
+                                <td class="badge added">+${c.added}</td>
+                                <td class="badge deleted">-${c.deleted}</td>
+                                <td style="font-size: 10px; color: #666;">
+                                    ${c.files ? c.files.slice(0, 3).map(fidx => (filePaths[fidx] || '').split('/').pop()).join(', ') : '-'}
+                                    ${c.files && c.files.length > 3 ? '...' : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            detailsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
         loadStateFromUrl();
