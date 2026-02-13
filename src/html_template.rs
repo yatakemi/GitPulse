@@ -1231,7 +1231,13 @@ pub const HTML_TEMPLATE: &str = r#"
             });
 
             // Sort by total changes (descending)
-            const sortedExts = Object.values(extMap).sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted));
+            // Sort by total changes (descending), then by commit count
+            const sortedExts = Object.values(extMap).sort((a, b) => {
+                const totalA = a.added + a.deleted;
+                const totalB = b.added + b.deleted;
+                if (totalA !== totalB) return totalB - totalA;
+                return b.commits - a.commits;
+            });
             const topExts = sortedExts.slice(0, 15);
 
             if (fileTypeChart) fileTypeChart.destroy();
