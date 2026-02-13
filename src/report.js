@@ -805,6 +805,25 @@
             filteredPRs.forEach(pr => {
                 const author = normalizeAuthor(pr.author);
                 
+                // Review Depth (Use our specifically collected review comments/threads)
+                const depth = (pr.review_comments && pr.review_comments.length) || 0;
+                allComments.push(depth);
+
+                // Response Time
+                const startStr = pr.first_assigned_at || pr.created_at;
+                if (startStr && pr.reviews && pr.reviews.length > 0) {
+                    const humanReviews = pr.reviews
+                        .filter(r => !isBot(r.user))
+                        .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+                    
+                    if (humanReviews.length > 0) {
+                        const startTime = new Date(startStr);
+                        const firstResponseTime = new Date(humanReviews[0].submitted_at);
+                        const diff = (firstResponseTime - startTime) / (1000 * 60 * 60);
+                        if (diff >= 0) responseTimes.push(diff);
+                    }
+                }
+
                 // Iterations
                 const distinctReviewCycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED' && !isBot(r.user)).map(r => r.submitted_at.split('T')[0])).size : 0;
                 const iterations = Math.max(1, distinctReviewCycles);
