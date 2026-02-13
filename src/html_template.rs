@@ -586,6 +586,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 metric_lead_time_p50: "Median Lead Time",
                 metric_lead_time_p90: "90th Percentile Lead Time",
                 metric_stability: "Process Stability (Lead Time StdDev)",
+                metric_rework_rate: "Rework Rate (%)",
+                metric_response_time: "Avg Response Time",
+                metric_review_depth: "Review Depth (Comments/PR)",
+                metric_iterations: "Avg Review Iterations",
                 status_improved: "Improved",
                 status_declined: "Declined",
                 status_stable: "Stable"
@@ -706,6 +710,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 metric_lead_time_p50: "リードタイム (中央値)",
                 metric_lead_time_p90: "リードタイム (90パーセンタイル)",
                 metric_stability: "プロセスの安定性 (標準偏差)",
+                metric_rework_rate: "修正依頼率 (%)",
+                metric_response_time: "平均反応時間",
+                metric_review_depth: "レビュー密度 (コメント数/PR)",
+                metric_iterations: "平均イテレーション",
                 status_improved: "改善",
                 status_declined: "低下",
                 status_stable: "安定"
@@ -1636,7 +1644,20 @@ pub const HTML_TEMPLATE: &str = r#"
                 const reworkCount = prs.filter(pr => pr.reviews && pr.reviews.some(r => r.state === 'CHANGES_REQUESTED')).length;
                 const reworkRate = (reworkCount / (prs.length || 1)) * 100;
 
-                return { throughput, median, p90, stdDev, reworkRate };
+                const responseTimes = prs.filter(pr => pr.reviews && pr.reviews.length > 0).map(pr => {
+                    const first = [...pr.reviews].sort((a,b) => a.submitted_at.localeCompare(b.submitted_at))[0];
+                    return (new Date(first.submitted_at) - new Date(pr.created_at)) / (1000 * 60 * 60);
+                });
+                const responseTime = responseTimes.length > 0 ? responseTimes.reduce((a,b) => a+b, 0) / responseTimes.length : 0;
+
+                const reviewDepth = prs.reduce((acc, pr) => acc + (pr.total_comments || 0), 0) / (prs.length || 1);
+                
+                const iterations = prs.reduce((acc, pr) => {
+                    const cycles = pr.reviews ? new Set(pr.reviews.filter(r => r.state !== 'COMMENTED').map(r => r.submitted_at.split('T')[0])).size : 0;
+                    return acc + Math.max(1, cycles);
+                }, 0) / (prs.length || 1);
+
+                return { throughput, median, p90, stdDev, reworkRate, responseTime, reviewDepth, iterations };
             }
 
             const before = getStats(beforePRs);
@@ -1647,7 +1668,10 @@ pub const HTML_TEMPLATE: &str = r#"
                 { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true },
-                { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true }
+                { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true },
+                { id: 'metric_response_time', b: before.responseTime, a: after.responseTime, unit: 'h', lowerIsBetter: true },
+                { id: 'metric_review_depth', b: before.reviewDepth, a: after.reviewDepth, unit: '', lowerIsBetter: false },
+                { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true }
             ];
 
             metrics.forEach(m => {

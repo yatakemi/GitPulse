@@ -5,7 +5,9 @@ use crate::github::GitHubPR;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReportData {
     pub commits: Vec<CommitStats>,
+    #[serde(default)]
     pub file_paths: Vec<String>,
+    #[serde(default)]
     pub github_prs: Vec<GitHubPR>,
 }
 

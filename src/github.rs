@@ -35,8 +35,11 @@ pub struct GitHubPR {
     pub changed_files: usize,
     #[serde(default)]
     pub total_comments: usize,
+    #[serde(default)]
     pub reviews: Vec<GitHubReview>,
+    #[serde(default)]
     pub review_requests: Vec<String>,
+    #[serde(default)]
     pub review_comments: Vec<GitHubReviewComment>,
 }
 
