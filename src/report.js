@@ -1300,8 +1300,22 @@
         }
 
         function updateLeadTimeChart(filteredData, startDate, endDate) {
-            const allFilteredMerges = dashboardData.merge_events.filter(me => me.date >= startDate && me.date <= endDate);
-            const branches = allFilteredMerges.slice(0, 15).reverse();
+            const allFilteredMerges = dashboardData.merge_events
+                .filter(me => me.date >= startDate && me.date <= endDate)
+                .sort((a, b) => b.date.localeCompare(a.date));
+            
+            // Calculate a week ago from the endDate to show "about a week's worth"
+            const endD = new Date(endDate);
+            const weekAgo = new Date(endD);
+            weekAgo.setDate(endD.getDate() - 7);
+            const weekAgoStr = weekAgo.toISOString().split('T')[0];
+            
+            let limit = 15;
+            const recentMergesCount = allFilteredMerges.filter(me => me.date >= weekAgoStr).length;
+            limit = Math.max(limit, recentMergesCount);
+            limit = Math.min(limit, 50); // Hard cap at 50 to maintain readability
+            
+            const branches = allFilteredMerges.slice(0, limit).reverse();
             
             if (leadChart) leadChart.destroy();
             leadChart = new Chart(leadCtx, {
