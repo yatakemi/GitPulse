@@ -89,6 +89,13 @@ fn is_sync_merge(message: &str, base_branches: &[String]) -> bool {
 pub fn collect_stats(repo_path: &Path, output_path: &Path, config: &crate::config::Config, merges_only: bool, include_github: bool, no_cache: bool) -> Result<()> {
     let repo = Repository::open(repo_path).context("Failed to open repository")?;
     
+    // Get current branch name
+    let head = repo.head().ok();
+    let branch_name = head.as_ref()
+        .and_then(|h| h.shorthand())
+        .unwrap_or("Unknown/Detached");
+    println!("🔍 Analyzing branch: \x1b[1;34m{}\x1b[0m", branch_name);
+
     let mut github_prs = Vec::new();
     if include_github {
         let cache_dir = output_path.parent().unwrap_or_else(|| Path::new("."));
