@@ -300,6 +300,37 @@ pub const HTML_TEMPLATE: &str = r#"
             </div>
         </div>
 
+        <!-- File Type Analysis Section -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <div class="chart-title">
+                    <span data-i18n="chart_file_type_share">File Type Share</span>
+                    <span class="info-icon" data-tooltip="Distribution of work across different file extensions.">i</span>
+                </div>
+                <canvas id="fileTypeChart"></canvas>
+            </div>
+            <div class="chart-box" style="height: auto; overflow-y: auto;">
+                <div class="chart-title">
+                    <span data-i18n="title_file_type_list">File Type Details</span>
+                </div>
+                <div style="margin-top: 40px;">
+                    <table class="user-table" style="font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th>Ext</th>
+                                <th>Added</th>
+                                <th>Deleted</th>
+                                <th>Churn%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileTypeTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Impact Assessment Section -->
         <div id="impactSection" class="card" style="max-width: none; margin-bottom: 25px; border-top: 4px solid #9b59b6; display: none;">
             <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 15px;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
@@ -619,6 +650,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_iterations: "Avg Iterations",
                 chart_reciprocity: "Review Reciprocity Matrix",
                 chart_scatter: "PR Size vs Lead Time",
+                chart_file_type_share: "File Type Share",
+                title_file_type_list: "File Type Details",
                 title_impact_assessment: "Initiative Impact Assessment",
                 header_metric: "Metric",
                 header_before: "Before Initiative",
@@ -747,6 +780,8 @@ pub const HTML_TEMPLATE: &str = r#"
                 sum_iterations: "平均イテレーション",
                 chart_reciprocity: "レビュー相互関係マトリクス",
                 chart_scatter: "PRサイズ vs リードタイム",
+                chart_file_type_share: "ファイル種別シェア",
+                title_file_type_list: "ファイル種別詳細",
                 title_impact_assessment: "施策インパクト評価",
                 header_metric: "指標",
                 header_before: "施策前",
@@ -814,6 +849,7 @@ pub const HTML_TEMPLATE: &str = r#"
 
         const ctx = document.getElementById('productivityChart').getContext('2d');
         const pieCtx = document.getElementById('shareChart').getContext('2d');
+        const fileTypeCtx = document.getElementById('fileTypeChart').getContext('2d');
         const dowCtx = document.getElementById('dayOfWeekChart').getContext('2d');
         const heatmapCtx = document.getElementById('heatmapChart').getContext('2d');
         const sizeCtx = document.getElementById('sizeDistChart').getContext('2d');
@@ -828,7 +864,7 @@ pub const HTML_TEMPLATE: &str = r#"
         const ctxSwitchCtx = document.getElementById('ctxSwitchChart').getContext('2d');
         const forecastCtx = document.getElementById('forecastChart').getContext('2d');
 
-        let mainChart, pieChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, ctxChart, forecastChart;
+        let mainChart, pieChart, fileTypeChart, dowChart, heatmapChart, sizeChart, hotChart, durChart, healthChart, ownerChart, leadChart, reviewActivityChart, reciprocityChart, scatterChart, ctxChart, forecastChart;
 
         const allUsers = [...new Set(data.map(d => d.author))].sort();
         let selectedUsers = new Set(allUsers);
@@ -955,9 +991,77 @@ pub const HTML_TEMPLATE: &str = r#"
             updateGitHubAdvancedMetrics(startDate, endDate);
             updateImpactAssessment();
             updateContextSwitchChart(filteredData, startDate, endDate);
+            updateFileTypeChart(filteredData);
             generateInsights(filteredData, startDate, endDate);
             updateUserList(filteredData);
             updatePredictiveDashboard(filteredData);
+        }
+
+        function updateFileTypeChart(filteredData) {
+            const extMap = {};
+            filteredData.forEach(c => {
+                const total = c.added + c.deleted;
+                const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
+                
+                const commitExts = new Set();
+                if (c.files) {
+                    c.files.forEach(fidx => {
+                        const path = filePaths[fidx];
+                        if (path) {
+                            const parts = path.split('.');
+                            const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'no-ext';
+                            if (ext.length < 8 && !path.endsWith('/')) {
+                                commitExts.add(ext);
+                            } else if (!path.includes('.')) {
+                                commitExts.add('no-ext');
+                            }
+                        }
+                    });
+                }
+
+                if (commitExts.size === 0) return;
+                
+                commitExts.forEach(ext => {
+                    if (!extMap[ext]) extMap[ext] = { ext, added: 0, deleted: 0, churn: 0, commits: 0 };
+                    extMap[ext].added += Math.floor(c.added / commitExts.size);
+                    extMap[ext].deleted += Math.floor(c.deleted / commitExts.size);
+                    extMap[ext].churn += Math.floor(churn / commitExts.size);
+                    extMap[ext].commits += 1;
+                });
+            });
+
+            const sortedExts = Object.values(extMap).sort((a, b) => (b.added + b.deleted) - (a.added + a.added));
+            const topExts = sortedExts.slice(0, 10);
+
+            if (fileTypeChart) fileTypeChart.destroy();
+            fileTypeChart = new Chart(fileTypeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: topExts.map(e => e.ext),
+                    datasets: [{
+                        data: topExts.map(e => e.added + e.deleted),
+                        backgroundColor: topExts.map(e => stringToColor(e.ext))
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+
+            const tbody = document.getElementById('fileTypeTableBody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                topExts.forEach(e => {
+                    const tr = document.createElement('tr');
+                    const total = e.added + e.deleted;
+                    const churnRate = total > 0 ? (e.churn / total * 100).toFixed(1) : '0.0';
+                    tr.innerHTML = `
+                        <td><strong>.${e.ext}</strong></td>
+                        <td class="badge added">+${e.added.toLocaleString()}</td>
+                        <td class="badge deleted">-${e.deleted.toLocaleString()}</td>
+                        <td>${churnRate}%</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
         }
 
         function updateReviewActivityChart(startDate, endDate) {

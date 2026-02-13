@@ -197,6 +197,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     let mut merge_events = Vec::new();
     let mut daily_dirs: HashMap<String, HashSet<String>> = HashMap::new();
     let mut weekly_map: HashMap<String, WeeklyStat> = HashMap::new();
+    let mut ext_map: HashMap<String, crate::model::FileTypeStat> = HashMap::new();
 
     // Grouping commits for merge time calculation
     let mut non_merge_commits = data.commits.clone();
@@ -254,6 +255,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
 
         // File stats and directory tracking
         let day_dir_set = daily_dirs.entry(date_str.clone()).or_insert(HashSet::new());
+        let mut commit_exts = HashSet::new();
         for &file_idx in &commit.files {
             let file_key = (file_idx, commit.author.clone());
             *file_map.entry(file_key).or_insert(0) += 1;
@@ -265,7 +267,31 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
                     "(root)"
                 };
                 day_dir_set.insert(dir.to_string());
+
+                // Extract extension
+                let ext = path.split('.').last().unwrap_or("no-ext").to_lowercase();
+                if ext.len() < 8 && !path.ends_with('/') {
+                    commit_exts.insert(ext);
+                } else if !path.contains('.') {
+                    commit_exts.insert("no-ext".to_string());
+                }
             }
+        }
+
+        // Aggregate by extension
+        let num_exts = commit_exts.len().max(1);
+        for ext in commit_exts {
+            let stat = ext_map.entry(ext.clone()).or_insert(crate::model::FileTypeStat {
+                extension: ext,
+                added: 0,
+                deleted: 0,
+                commits: 0,
+                churn: 0,
+            });
+            stat.added += commit.added / num_exts;
+            stat.deleted += commit.deleted / num_exts;
+            stat.commits += 1;
+            stat.churn += churn / num_exts;
         }
 
         // Merge events
@@ -356,6 +382,7 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
     crate::model::DashboardData {
         daily_stats: daily_map.into_values().collect(),
         file_stats: file_map.into_iter().map(|((f, a), c)| FileStat { file_idx: f, author: a, count: c }).collect(),
+        file_type_stats: ext_map.into_values().collect(),
         merge_events,
         daily_dir_counts,
         weekly_stats,
