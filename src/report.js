@@ -605,11 +605,13 @@
 
             filteredData.forEach(c => {
                 processedCommits++;
-                const total = c.added + c.deleted;
-                const churn = (c.added + c.deleted) - Math.abs(c.added - c.deleted);
+                const total = (c.added || 0) + (c.deleted || 0);
+                const churn = total - Math.abs((c.added || 0) - (c.deleted || 0));
                 
                 const commitExts = new Set();
-                if (c.files && Array.isArray(c.files) && c.files.length > 0) {
+                const hasDetailedFiles = c.files && Array.isArray(c.files) && c.files.length > 0;
+
+                if (hasDetailedFiles) {
                     commitsWithFiles++;
                     c.files.forEach(fidx => {
                         const path = filePaths[fidx];
@@ -619,32 +621,41 @@
                             
                             if (lastDotIndex > 0 && lastDotIndex < filename.length - 1) {
                                 const ext = filename.substring(lastDotIndex + 1).toLowerCase();
-                                if (ext.length <= 15) {
-                                    commitExts.add(ext);
-                                } else {
-                                    commitExts.add('others');
-                                }
+                                if (ext.length <= 15) commitExts.add(ext);
+                                else commitExts.add('others');
                             } else if (filename.startsWith('.')) {
-                                // Files like .gitignore, .env
                                 commitExts.add('config');
                             } else {
                                 commitExts.add('no-ext');
                             }
                         }
                     });
+                } 
+                
+                // Fallback: If no files were detected but there's activity, label as others
+                if (commitExts.size === 0 && (total > 0 || c.commits > 0)) {
+                    commitExts.add('others');
                 }
 
                 if (commitExts.size === 0) return;
                 
+                const linesPerExt = Math.round(total / commitExts.size);
+                const churnPerExt = Math.round(churn / commitExts.size);
+
                 commitExts.forEach(ext => {
                     if (!extMap[ext]) extMap[ext] = { ext, added: 0, deleted: 0, churn: 0, commits: 0 };
-                    extMap[ext].added += Math.round(c.added / commitExts.size);
-                    extMap[ext].deleted += Math.round(c.deleted / commitExts.size);
-                    extMap[ext].churn += Math.round(churn / commitExts.size);
-                    extMap[ext].commits += 1;
+                    // Approximate added/deleted distribution
+                    if (total > 0) {
+                        const ratio = (c.added || 0) / total;
+                        extMap[ext].added += Math.round(linesPerExt * ratio);
+                        extMap[ext].deleted += Math.round(linesPerExt * (1 - ratio));
+                    }
+                    extMap[ext].churn += churnPerExt;
+                    extMap[ext].commits += (c.commits || 1) / commitExts.size;
                 });
             });
 
+            // Sort by total changes (descending), then by commit count
             const sortedExts = Object.values(extMap).sort((a, b) => {
                 const totalA = a.added + a.deleted;
                 const totalB = b.added + b.deleted;
@@ -658,7 +669,7 @@
             
             const tbody = document.getElementById('fileTypeTableBody');
             if (topExts.length === 0) {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #7f8c8d; padding: 20px;">No file data found.<br><small>(Checked ${processedCommits} commits, ${commitsWithFiles} had file info)</small></td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #7f8c8d; padding: 20px;">No file data found.<br><small>(Processed ${processedCommits} entries)</small></td></tr>`;
                 return;
             }
             fileTypeChart = new Chart(fileTypeCtx, {
