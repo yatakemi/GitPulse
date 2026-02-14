@@ -1690,7 +1690,7 @@ function updateImpactAssessment(eventIdx) {
         const desc = document.getElementById('impactDescription');
         if (impactTableBody) impactTableBody.innerHTML = '';
         if (desc) desc.innerHTML = `<small>No initiative selected — event markers hidden on charts.</small>`;
-        updateAllChartsWithEvents(false);
+        updateAllChartsWithEvents('none');
         return;
     }
 
@@ -1872,11 +1872,11 @@ function updateImpactAssessment(eventIdx) {
 
     document.getElementById('impactDescription').innerHTML = `Assessment of initiative: <strong>${event.name}</strong> (Started ${event.date})`;
 
-    // Update all charts with vertical lines
-    updateAllChartsWithEvents();
+    // Update all charts with the selected vertical line
+    updateAllChartsWithEvents(eventIdx);
 }
 
-function updateAllChartsWithEvents(showEvents = true) {
+function updateAllChartsWithEvents(selectedIdx = null) {
     if (!dashboardData.events) return;
 
     const charts = [
@@ -1885,8 +1885,8 @@ function updateAllChartsWithEvents(showEvents = true) {
         reviewActivityChart, healthChart
     ];
 
-    // If caller requests no event markers, clear annotations and return
-    if (!showEvents) {
+    // If "none", null or invalid selection, clear annotations
+    if (selectedIdx === 'none' || selectedIdx === null || isNaN(parseInt(selectedIdx))) {
         charts.forEach(chart => {
             if (chart) {
                 chart.options.plugins.annotation = { annotations: {} };
@@ -1896,33 +1896,27 @@ function updateAllChartsWithEvents(showEvents = true) {
         return;
     }
 
+    const idx = parseInt(selectedIdx);
+    const event = dashboardData.events[idx];
+    if (!event) return;
+
     const annotations = {};
-    dashboardData.events.forEach((event, idx) => {
-        annotations['line' + idx] = {
-            type: 'line',
-            xMin: event.date,
-            xMax: event.date,
-            borderColor: '#9b59b6',
-            borderWidth: 2,
-            borderDash: [6, 6],
-            label: {
-                display: false, // Hidden by default
-                content: event.name,
-                position: 'start',
-                backgroundColor: '#9b59b6',
-                color: '#fff',
-                font: { size: 10 }
-            },
-            enter(ctx) {
-                ctx.element.options.label.display = true;
-                ctx.chart.update('none');
-            },
-            leave(ctx) {
-                ctx.element.options.label.display = false;
-                ctx.chart.update('none');
-            }
-        };
-    });
+    annotations['line' + idx] = {
+        type: 'line',
+        xMin: event.date,
+        xMax: event.date,
+        borderColor: '#9b59b6',
+        borderWidth: 2,
+        borderDash: [6, 6],
+        label: {
+            display: true, // Always visible
+            content: event.name,
+            position: 'start',
+            backgroundColor: '#9b59b6',
+            color: '#fff',
+            font: { size: 10 }
+        }
+    };
 
     charts.forEach(chart => {
         if (chart) {
