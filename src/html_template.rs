@@ -155,7 +155,17 @@ pub const HTML_TEMPLATE: &str = concat!(
         .user-checkbox-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px;
+            border-top: 1px solid #eee; margin-top: 10px; padding-top: 15px;
         }
+        .group-controls {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;
+        }
+        .btn-group {
+            padding: 4px 12px; font-size: 12px; border-radius: 20px; border: 1px solid #3498db;
+            background: white; color: #3498db; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-group:hover { background: #ebf5fb; }
+        .btn-group.active { background: #3498db; color: white; }
         .user-checkbox-item {
             display: flex; align-items: center; gap: 8px; font-size: 13px;
             padding: 4px 8px; border-radius: 6px; cursor: pointer;
@@ -282,6 +292,9 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <button class="btn-small" onclick="selectAllUsers(true)" data-i18n="btn_select_all">Select All</button>
                     <button class="btn-small" onclick="selectAllUsers(false)" data-i18n="btn_select_none">Select None</button>
                 </div>
+            </div>
+            <div class="group-controls" id="groupControls">
+                <!-- Populated by JS -->
             </div>
             <div class="user-checkbox-grid" id="userCheckboxes">
                 <!-- Populated by JS -->

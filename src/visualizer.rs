@@ -493,5 +493,6 @@ fn aggregate_dashboard_data(data: &crate::model::ReportData, config: &crate::con
         file_paths: data.file_paths.clone(),
         commits: data.commits.clone(),
         events: config.events.clone(),
+        user_groups: config.groups.clone(),
     }
 }

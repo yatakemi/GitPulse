@@ -16,6 +16,8 @@ pub struct Config {
     pub base_branches: Vec<String>,
     #[serde(default)]
     pub filter: CommitFilterConfig,
+    #[serde(default)]
+    pub groups: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

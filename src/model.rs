@@ -26,6 +26,7 @@ pub struct DashboardData {
     pub file_paths: Vec<String>,
     pub commits: Vec<CommitStats>,
     pub events: Vec<crate::config::EventConfig>,
+    pub user_groups: std::collections::HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

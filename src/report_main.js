@@ -6,6 +6,34 @@ function selectAllUsers(shouldSelect) {
     } else {
         selectedUsers.clear();
     }
+    renderGroupControls();
+    updateDashboard();
+}
+
+function toggleGroup(groupName) {
+    const usersInGroup = dashboardData.user_groups[groupName];
+    if (!usersInGroup) return;
+
+    // Normalize group user names for comparison
+    const normalizedGroupUsers = usersInGroup.map(u => normalizeAuthor(u));
+
+    // Check if ALL users in the group are currently selected
+    const allSelected = normalizedGroupUsers.every(u => selectedUsers.has(u));
+
+    if (allSelected) {
+        // Deselect all in group
+        normalizedGroupUsers.forEach(u => selectedUsers.delete(u));
+    } else {
+        // Select all in group
+        normalizedGroupUsers.forEach(u => selectedUsers.add(u));
+    }
+
+    // Refresh UI
+    document.querySelectorAll('.user-checkbox').forEach(cb => {
+        cb.checked = selectedUsers.has(cb.value);
+    });
+
+    renderGroupControls();
     updateDashboard();
 }
 

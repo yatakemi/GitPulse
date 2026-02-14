@@ -104,12 +104,52 @@ function renderUserCheckboxes() {
         cb.onchange = (e) => {
             if (e.target.checked) selectedUsers.add(user);
             else selectedUsers.delete(user);
+            renderGroupControls();
             updateDashboard();
         };
 
         label.appendChild(cb);
         label.appendChild(document.createTextNode(' ' + user));
         container.appendChild(label);
+    });
+
+    renderGroupControls();
+}
+
+/**
+ * Renders the group selection buttons based on dashboardData.user_groups.
+ */
+function renderGroupControls() {
+    const container = document.getElementById('groupControls');
+    if (!container || !dashboardData.user_groups) return;
+
+    container.innerHTML = '';
+
+    // Sort group names for consistent UI
+    const groupNames = Object.keys(dashboardData.user_groups).sort();
+
+    groupNames.forEach(groupName => {
+        const users = dashboardData.user_groups[groupName];
+        if (!users || users.length === 0) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-group';
+
+        // Determine state: active (all selected), partial, or inactive
+        const selectedCount = users.filter(u => selectedUsers.has(normalizeAuthor(u))).length;
+        const isAllSelected = selectedCount === users.length;
+        const isPartial = selectedCount > 0 && selectedCount < users.length;
+
+        if (isAllSelected) {
+            btn.classList.add('active');
+        } else if (isPartial) {
+            btn.style.borderColor = '#e67e22';
+            btn.style.color = '#e67e22';
+        }
+
+        btn.textContent = groupName;
+        btn.onclick = () => toggleGroup(groupName);
+        container.appendChild(btn);
     });
 }
 
