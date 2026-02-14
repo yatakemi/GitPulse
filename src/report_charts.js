@@ -1906,12 +1906,20 @@ function updateAllChartsWithEvents(showEvents = true) {
             borderWidth: 2,
             borderDash: [6, 6],
             label: {
-                display: true,
+                display: false, // Hidden by default
                 content: event.name,
                 position: 'start',
                 backgroundColor: '#9b59b6',
                 color: '#fff',
                 font: { size: 10 }
+            },
+            enter(ctx) {
+                ctx.element.options.label.display = true;
+                ctx.chart.draw();
+            },
+            leave(ctx) {
+                ctx.element.options.label.display = false;
+                ctx.chart.draw();
             }
         };
     });
