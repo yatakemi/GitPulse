@@ -84,8 +84,26 @@ async function _updateDashboardInternal() {
         d.dateStr >= startDate && d.dateStr <= endDate && selectedUsers.has(d.author)
     );
 
-    // 1. High Priority: Summary and Primary Chart
-    updateSummary(filteredData, metric, startDate, endDate);
+    // 1. Calculate Previous Period for comparison
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+
+    const prevEnd = new Date(start);
+    prevEnd.setDate(start.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevEnd.getDate() - (diffDays - 1));
+
+    const prevStartStr = prevStart.toISOString().split('T')[0];
+    const prevEndStr = prevEnd.toISOString().split('T')[0];
+
+    const previousData = data.filter(d =>
+        d.dateStr >= prevStartStr && d.dateStr <= prevEndStr && selectedUsers.has(d.author)
+    );
+
+    // 2. High Priority: Summary and Primary Chart
+    updateSummary(filteredData, previousData, metric, startDate, endDate);
     updateTimelineChart(filteredData, metric, chartType, showTrend, startDate, endDate);
 
     await yieldToMain();

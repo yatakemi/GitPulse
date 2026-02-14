@@ -393,8 +393,10 @@ function updateGitHubAdvancedMetrics(startDate, endDate) {
     updateDistributionChart(responseTimes, leadTimes);
 }
 
-function updateSummary(currentData, metric, startDate, endDate) {
+function updateSummary(currentData, previousData, metric, startDate, endDate) {
     const currentTotal = currentData.reduce((acc, d) => acc + d[metric], 0);
+    const prevTotal = previousData.reduce((acc, d) => acc + d[metric], 0);
+
     const activeDays = new Set(currentData.map(d => d.dateStr)).size;
     const avgPerDay = activeDays > 0 ? (currentTotal / activeDays).toFixed(1) : 0;
     const totalChanges = currentData.reduce((acc, d) => acc + d.total_changes, 0);
@@ -411,6 +413,20 @@ function updateSummary(currentData, metric, startDate, endDate) {
     document.getElementById('churnRateValue').textContent = `${churnRate}%`;
     document.getElementById('activeDaysValue').textContent = activeDays || 0;
     document.getElementById('avgPerDayValue').textContent = Number(avgPerDay || 0).toLocaleString();
+
+    // Update Summary Diff
+    const diffEl = document.getElementById('summaryDiff');
+    if (diffEl) {
+        if (prevTotal > 0) {
+            const diffPercent = ((currentTotal - prevTotal) / prevTotal) * 100;
+            const sign = diffPercent >= 0 ? '+' : '';
+            diffEl.textContent = `${sign}${diffPercent.toFixed(1)}% ${t('diff_prev')}`;
+            diffEl.style.color = diffPercent >= 0 ? '#27ae60' : '#e74c3c';
+        } else {
+            diffEl.textContent = '-';
+            diffEl.style.color = '#7f8c8d';
+        }
+    }
 }
 
 function updateTimelineChart(filteredData, metric, chartType, showTrend, startDate, endDate) {
