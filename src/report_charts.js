@@ -388,6 +388,9 @@ function updateGitHubAdvancedMetrics(startDate, endDate) {
     } else {
         scatterChart = null;
     }
+
+    // 4. Render Distribution Charts (Response Time & Lead Time)
+    updateDistributionChart(responseTimes, leadTimes);
 }
 
 function updateSummary(currentData, metric, startDate, endDate) {
