@@ -170,7 +170,8 @@ function updateReviewActivityChart(startDate, endDate) {
                         ticks: { stepSize: 1 },
                         title: { display: true, text: 'Comments Given' }
                     }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     } else {
@@ -497,7 +498,8 @@ function updateTimelineChart(filteredData, metric, chartType, showTrend, startDa
                     scales: {
                         x: { stacked: chartType === 'bar' },
                         y: { stacked: chartType === 'bar', beginAtZero: true, title: { display: true, text: 'Days' } }
-                    }
+                    },
+                    interaction: { mode: 'index', intersect: false }
                 }
             });
         }
@@ -528,7 +530,7 @@ function updateTimelineChart(filteredData, metric, chartType, showTrend, startDa
         mainChart = new Chart(ctx, {
             type: chartType,
             data: { labels: displayDates, datasets },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: chartType === 'bar' }, y: { stacked: chartType === 'bar', beginAtZero: true } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: chartType === 'bar' }, y: { stacked: chartType === 'bar', beginAtZero: true } }, interaction: { mode: 'index', intersect: false } }
         });
     } else {
         mainChart = null;
@@ -748,9 +750,10 @@ function updateHealthTrendChart(filteredData, startDate, endDate) {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, max: 100, title: { display: true, text: 'Churn Rate (%)' } },
+                    y: { beginAtZero: true, max: 100, title: { display: true, text: t('status_churn') || 'Churn Rate (%)' } },
                     y1: { beginAtZero: true, max: 24, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Hours' } }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     } else {
@@ -927,7 +930,8 @@ function updateLeadTimeTrendChart(startDate, endDate) {
                 maintainAspectRatio: false,
                 scales: {
                     y: { beginAtZero: true, title: { display: true, text: 'Days' } }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     } else {
@@ -982,6 +986,7 @@ function updateFileTypeTrendChart(startDate, endDate) {
                 scales: {
                     y: { beginAtZero: true, title: { display: true, text: 'Added Lines (7-day Avg)' } }
                 },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { position: 'right' }
                 }
@@ -1066,7 +1071,8 @@ function updateVelocitySizeChart(startDate, endDate) {
                         position: 'right',
                         grid: { drawOnChartArea: false }
                     }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     }
@@ -1144,7 +1150,8 @@ function updateContextSwitchChart(filteredData, startDate, endDate) {
                 scales: {
                     y: { beginAtZero: true, title: { display: true, text: 'Switches / Dirs' } },
                     y1: { beginAtZero: true, position: 'right', title: { display: true, text: 'Active PRs' }, grid: { drawOnChartArea: false } }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     }
@@ -1214,7 +1221,8 @@ function updateContextSwitchTrendChart(filteredData, startDate, endDate) {
                 scales: {
                     y: { beginAtZero: true, title: { display: true, text: 'Unrelated Switches' }, position: 'left' },
                     y1: { beginAtZero: true, title: { display: true, text: 'Minutes between Commits' }, position: 'right', grid: { drawOnChartArea: false } }
-                }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
     }
@@ -1644,7 +1652,8 @@ function updateForecastChart(weeklyStats, currentVelocity, stdev) {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 y: { beginAtZero: true, title: { display: true, text: t('header_commits') } }
-            }
+            },
+            interaction: { mode: 'index', intersect: false }
         }
     });
 }
