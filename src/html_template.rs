@@ -287,6 +287,35 @@ pub const HTML_TEMPLATE: &str = concat!(
 
         <!-- File Type Analysis Section -->
         <div class="charts-grid">
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
+                    <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
+                    <div class="chart-controls">
+                        <div class="control-group" style="font-size: 12px;">
+                            <label data-i18n="metric">Metric:</label>
+                            <select id="metricSelect" onchange="updateDashboard()">
+                                <option value="total_changes" data-i18n="metric_total">Total Changes</option>
+                                <option value="added" data-i18n="metric_added">Added Lines</option>
+                                <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
+                                <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
+                                <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
+                            </select>
+                        </div>
+                        <select id="chartTypeSelect" onchange="updateDashboard()">
+                            <option value="line" data-i18n="chart_line">Line Chart</option>
+                            <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
+                        </select>
+                        <div class="control-group" style="font-size: 12px; margin-left: 10px;">
+                            <input type="checkbox" id="showTrend" onchange="updateDashboard()">
+                            <label for="showTrend" data-i18n="trend">7-Day Trend</label>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="productivityChart"></canvas>
+            </div>
+
+            <!-- Overview: File Type Share & Details (moved up) -->
             <div class="chart-box">
                 <div class="chart-title">
                     <span data-i18n="chart_file_type_share">File Type Share</span>
@@ -314,98 +343,63 @@ pub const HTML_TEMPLATE: &str = concat!(
                     </table>
                 </div>
             </div>
-        </div>
-
-        <!-- Impact Assessment Section -->
-        <div id="impactSection" class="card" style="max-width: none; margin-bottom: 25px; border-top: 4px solid #9b59b6; display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="font-size: 18px; color: #2c3e50; margin: 0;">🚀 <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span></h2>
-                <div id="eventSelectorContainer" style="display: flex; align-items: center; gap: 10px;">
-                    <label data-i18n="label_select_initiative" style="font-size: 13px; color: #7f8c8d;">Select Initiative:</label>
-                    <select id="eventSelect" onchange="updateImpactAssessment(this.value)" style="padding: 4px 8px; font-size: 13px;"></select>
-                </div>
             </div>
-            <div style="overflow-x: auto;">
-                <table class="user-table" id="impactTable">
-                    <thead>
-                        <tr>
-                            <th data-i18n="header_metric">Metric</th>
-                            <th data-i18n="header_before">Before Initiative</th>
-                            <th data-i18n="header_after">After Initiative</th>
-                            <th data-i18n="header_change">Change (Δ%)</th>
-                            <th data-i18n="header_status">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="impactTableBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="impactDescription" style="margin-top: 15px; font-size: 13px; color: #666; line-height: 1.6;"></div>
-            
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; font-size: 12px; color: #7f8c8d;">
-                <div>
-                    <strong data-i18n="label_throughput">Throughput</strong>: <span data-i18n="desc_throughput">Measures delivery volume. Formula: [Merged PRs] / [Weeks in period]. Higher means the team is completing more tasks.</span>
-                </div>
-                <div>
-                    <strong data-i18n="label_p90">P90 Lead Time</strong>: <span data-i18n="desc_p90">Worst-case delivery speed. Formula: The threshold under which 90% of PRs are merged. Lowering this means fewer PRs are 'stuck'.</span>
-                </div>
-                <div>
-                    <strong data-i18n="label_stability">Stability</strong>: <span data-i18n="desc_stability">Measures predictability. Formula: Standard Deviation of Lead Time. Lower means delivery is consistent regardless of author or task.</span>
-                </div>
-                <div>
-                    <strong data-i18n="label_rework_rate_label">Rework Rate</strong>: <span data-i18n="desc_rework">Measures quality of alignment. Formula: [PRs with 'Changes Requested' OR Iterations > 1] / [Total PRs]. This captures rework even if teams use regular comments for feedback.</span>
-                </div>
-                <div>
-                    <strong data-i18n="metric_steps">Avg Lines Added / Week</strong>: <span data-i18n="desc_steps">Measures code volume. Formula: [Total Lines Added] / [Weeks in period]. Helps track implementation effort trends.</span>
-                </div>
-                <div>
-                    <strong data-i18n="metric_commit_density">Commit Density (Commits/Week)</strong>: <span data-i18n="desc_commit_density">Measures activity frequency. Formula: [Total Commits] / [Weeks in period]. Helps see if work was broken down into smaller increments.</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Predictive Analysis Section -->
-        <div class="card" style="max-width: none; margin-bottom: 25px;">
-            <h2 style="font-size: 18px; color: #2c3e50; margin-bottom: 20px;">🔮 <span data-i18n="title_predictive_analysis">Predictive Analysis</span></h2>
-            <div class="forecast-grid">
-                <div class="forecast-card">
-                    <div class="forecast-label" data-i18n="label_current_velocity">Current Velocity</div>
-                    <div class="forecast-value" id="currentVelocityValue">-</div>
-                    <div class="forecast-trend" id="velocityTrendValue">-</div>
-                </div>
-                <div class="forecast-card">
-                    <div class="forecast-label" data-i18n="label_projected_throughput">Projected 60-Day Throughput</div>
-                    <div class="forecast-value" id="projectedThroughputValue">-</div>
-                </div>
-                <div class="forecast-card">
-                    <div class="forecast-label" data-i18n="label_est_completion">Estimated Completion Date</div>
-                    <div class="forecast-value" id="estCompletionValue">-</div>
-                    <div id="estCompletionRange" style="font-size: 12px; color: #7f8c8d; margin-top: 5px;"></div>
-                    <div class="goal-setter">
-                        <span data-i18n="label_remaining_work">Remaining Work</span>
-                        <input type="number" id="remainingWorkInput" value="100" onchange="updateCompletionEstimate()">
-                        <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
-                    </div>
-                </div>
-                <div class="forecast-card" style="border-left-color: #27ae60;">
-                    <div class="forecast-label" data-i18n="label_weekly_commitment">Next Week's Commitment</div>
-                    <div id="commitmentInsight" style="font-size: 14px; margin: 10px 0; line-height: 1.6;">-</div>
-                    <div class="goal-setter">
-                        <span data-i18n="label_weekly_goal">Goal for next week</span>
-                        <input type="number" id="weeklyGoalInput" value="20" onchange="updateWeeklyCommitmentForecast()">
-                        <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
-                    </div>
-                </div>
-            </div>
-            <div class="chart-box full-width" style="box-shadow: none; padding: 0;">
+            <div class="chart-box full-width">
                 <div class="chart-title">
-                    <span data-i18n="forecast_chart_title">Velocity Forecasting</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_forecast" data-tooltip="Predicts future output based on the last 4 weeks of velocity. The dotted line shows the projected trend. Change the 'Remaining Work' to see an estimated completion date.">i</span>
+                    <span data-i18n="chart_lead_time_trend">Lead Time Trend (Time Series)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_lead_time_trend" data-tooltip="Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.">i</span>
                 </div>
-                <canvas id="forecastChart" style="height: 300px;"></canvas>
+                <canvas id="leadTimeTrendChart"></canvas>
             </div>
-        </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_file_type_trend">File Type Activity Trend</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_file_type_trend" data-tooltip="Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.">i</span>
+                </div>
+                <canvas id="fileTypeTrendChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_velocity_size_correlation">Commit Velocity vs. Size Trend</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_velocity_size" data-tooltip="Correlates commit frequency with commit size. \n\nInsights:\n1. Style Shift: If commits increase while size decreases, the team is moving towards 'Atomic Commits'.\n2. Real Productivity: If both increase, the actual delivery volume is growing.\n3. Risk: Large size with low frequency often indicates high-risk PRs that are hard to review.">i</span>
+                </div>
+                <canvas id="velocitySizeChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">
+                    <span data-i18n="chart_share">User Share</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_share" data-tooltip="Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev). A highly skewed chart suggests high risk if the top contributor is unavailable.">i</span>
+                </div>
+                <canvas id="shareChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">
+                    <span data-i18n="chart_dow">Day of Week Activity</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_dow" data-tooltip="Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time, unhealthy work habits, or upcoming release pressure.">i</span>
+                </div>
+                <canvas id="dayOfWeekChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_heatmap">Activity Heatmap (Hour vs Day)</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_heatmap" data-tooltip="Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk. Inconsistent heatmaps might indicate lack of overlapping hours for collaboration.">i</span>
+                </div>
+                <canvas id="heatmapChart"></canvas>
+            </div>
+             <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_size">Commit Size Distribution</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_size" data-tooltip="Breakdown of commit sizes. XS: 10行未満, S: 10-50行, M: 50-200行, L: 200-500行, XL: 500行以上。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唤します。">i</span>
+                </div>
+                <canvas id="sizeDistChart"></canvas>
+            </div>
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="chart_duration">Est. Daily Work Duration</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_duration" data-tooltip="その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。">i</span>
+                </div>
+                <canvas id="workDurationChart"></canvas>
+            </div>
 
         <div class="insights-section" id="insightsContainer">
             <h2>💡 <span data-i18n="insights_title">Insights</span></h2>
