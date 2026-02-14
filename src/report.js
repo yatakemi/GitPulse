@@ -193,6 +193,8 @@
                 metric_iterations: "Avg Review Iterations",
                 metric_test_ratio: "Test Code Ratio (%)",
                 metric_steps: "Avg Lines Added / Week",
+                metric_commit_size: "Avg Commit Size (lines/commit)",
+                metric_commit_size_p90: "Commit Size (P90) (lines/commit)",
                 metric_commit_density: "Commit Density (Commits/Week)",
                 status_improved: "Improved",
                 status_declined: "Declined",
@@ -403,6 +405,8 @@
                 metric_iterations: "平均レビューイテレーション",
                 metric_test_ratio: "テストコード比率 (%)",
                 metric_steps: "週平均追加行数",
+                metric_commit_size: "1コミットあたり平均行数",
+                metric_commit_size_p90: "1コミットあたり行数 (P90)",
                 metric_commit_density: "コミット密度 (コミット/週)",
                 status_improved: "改善",
                 status_declined: "悪化",
@@ -2165,23 +2169,40 @@
             
             // Initialize event selector if empty
             if (eventSelect && eventSelect.options.length === 0) {
+                // allow a "no initiative" state so users can hide event markers on all charts
+                const noneOpt = document.createElement('option');
+                noneOpt.value = 'none';
+                noneOpt.textContent = t('btn_select_none');
+                eventSelect.appendChild(noneOpt);
+
                 dashboardData.events.forEach((e, idx) => {
                     const opt = document.createElement('option');
                     opt.value = idx;
                     opt.textContent = `${e.name} (${e.date})`;
                     eventSelect.appendChild(opt);
                 });
-                eventSelect.value = dashboardData.events.length - 1; // Default to last
+                // Default to last event (preserve previous behavior)
+                eventSelect.value = String(dashboardData.events.length - 1);
                 eventIdx = dashboardData.events.length - 1;
             }
 
             // If eventIdx is not provided (called from updateDashboard), use current selector value
             if (eventIdx === undefined && eventSelect) {
-                eventIdx = parseInt(eventSelect.value);
+                eventIdx = eventSelect.value; // keep raw value to detect 'none'
             }
 
+            // If user selected the special "none" option (or an invalid value), hide assessment and remove event markers
+            if (eventIdx === 'none' || eventIdx === null || isNaN(parseInt(eventIdx))) {
+                const desc = document.getElementById('impactDescription');
+                if (impactTableBody) impactTableBody.innerHTML = '';
+                if (desc) desc.innerHTML = `<small>No initiative selected — event markers hidden on charts.</small>`;
+                updateAllChartsWithEvents(false);
+                return;
+            }
+
+            eventIdx = parseInt(eventIdx);
             const event = dashboardData.events[eventIdx];
-            if (!event) return;
+            if (!event) return; 
 
             const eventDate = new Date(event.date);
             if (impactTableBody) impactTableBody.innerHTML = '';
@@ -2278,10 +2299,23 @@
                 }).length;
                 const commitDensity = commitsInPeriod / (periodWeeks || 1);
 
-                return { 
-                    throughput, 
+                // Average commit size (lines added per commit) for this period
+                const avgCommitSize = commitsInPeriod > 0 ? (totalAdded / commitsInPeriod) : 0;
+
+                // collect per-commit added counts so we can compute P90 for commit size
+                const commitSizes = (dashboardData.commits || []).filter(c => {
+                    const d = new Date(c.date);
+                    return isBefore ? (d >= ninetyDaysBefore && d < eventDate) : (d >= eventDate);
+                }).map(c => c.added || 0);
+                const commitSizeStats = getDetailedStats(commitSizes);
+                const commitSizeP90 = commitSizeStats.p90 || 0;
+
+                return {
+                    throughput,
                     commitDensity,
-                    median: lt.median, 
+                    avgCommitSize,
+                    commitSizeP90,
+                    median: lt.median,
                     p90: lt.p90 || 0, // Fallback
                     max: lt.max,
                     avg: lt.avg,
@@ -2294,7 +2328,7 @@
                     iterations: iters.avg,
                     testRatio,
                     stepsPerWeek
-                };
+                }; 
             }
 
             const now = allDates.length > 0 ? new Date(allDates[allDates.length - 1]) : new Date();
@@ -2308,6 +2342,8 @@
             const metrics = [
                 { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false },
                 { id: 'metric_commit_density', b: before.commitDensity, a: after.commitDensity, unit: ' commits/week', lowerIsBetter: false },
+                { id: 'metric_commit_size', b: before.avgCommitSize, a: after.avgCommitSize, unit: ' lines/commit', lowerIsBetter: false },
+                { id: 'metric_commit_size_p90', b: before.commitSizeP90, a: after.commitSizeP90, unit: ' lines/commit', lowerIsBetter: false },
                 { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true },
                 { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true },
@@ -2343,7 +2379,7 @@
             updateAllChartsWithEvents();
         }
 
-        function updateAllChartsWithEvents() {
+        function updateAllChartsWithEvents(showEvents = true) {
             if (!dashboardData.events) return;
             
             const charts = [
@@ -2351,6 +2387,17 @@
                 velocitySizeChart, ctxSwitchTrendChart, ctxChart, 
                 reviewActivityChart, healthChart
             ];
+
+            // If caller requests no event markers, clear annotations and return
+            if (!showEvents) {
+                charts.forEach(chart => {
+                    if (chart) {
+                        chart.options.plugins.annotation = { annotations: {} };
+                        chart.update();
+                    }
+                });
+                return;
+            }
 
             const annotations = {};
             dashboardData.events.forEach((event, idx) => {
