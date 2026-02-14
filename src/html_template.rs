@@ -55,15 +55,15 @@ pub const HTML_TEMPLATE: &str = concat!(
         .info-icon:hover { background: #3498db; }
         .info-icon:hover::after {
             content: attr(data-tooltip);
-            position: absolute; top: 50%; left: 100%; transform: translateY(-50%);
+            position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
             background: #34495e; color: white; padding: 8px 12px; border-radius: 6px;
             font-size: 12px; font-weight: 400; white-space: pre-wrap; width: 250px; text-align: left;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; margin-left: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; margin-top: 10px;
             line-height: 1.4;
         }
         .info-icon:hover::before {
-            content: ''; position: absolute; top: 50%; left: 100%; margin-top: -5px;
-            border-width: 5px; border-style: solid; border-color: transparent #34495e transparent transparent;
+            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border-width: 5px; border-style: solid; border-color: transparent transparent #34495e transparent;
         }
 
         /* Insight Cards */
