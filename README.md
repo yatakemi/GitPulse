@@ -111,7 +111,6 @@ Define logical groups of users for collective selection in the dashboard.
 "Backend Team" = ["Alice", "Bob"]
 "Frontend Team" = ["Charlie", "Dave"]
 ```
-```
 
 **Note:** GitHub noreply emails are **automatically merged** to `username` by default.
 
