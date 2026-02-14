@@ -226,7 +226,10 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <div class="value" id="mergeCommitsValue">-</div>
              </div>
              <div class="card">
-                <h3 data-i18n="sum_churn">Churn Rate</h3>
+                <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span data-i18n="sum_churn">Churn Rate</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_churn_rate">i</span>
+                </h3>
                 <div class="value" id="churnRateValue">-</div>
              </div>
             <div class="card">
@@ -291,7 +294,10 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div class="forecast-grid">
                 <!-- Velocity Card -->
                 <div class="forecast-card">
-                    <h3 data-i18n="label_current_velocity">Current Velocity</h3>
+                    <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        <span data-i18n="label_current_velocity">Current Velocity</span>
+                        <span class="info-icon" data-i18n-tooltip="tooltip_prediction_logic">i</span>
+                    </h3>
                     <div class="forecast-value" id="currentVelocityValue">-</div>
                     <div class="forecast-label"><span data-i18n="label_commits">commits</span> / week</div>
                     <div id="velocityTrendValue" class="forecast-trend">-</div>
@@ -300,7 +306,10 @@ pub const HTML_TEMPLATE: &str = concat!(
 
                 <!-- Projected Throughput Card -->
                 <div class="forecast-card">
-                    <h3 data-i18n="label_projected_throughput">Projected Throughput</h3>
+                    <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        <span data-i18n="label_projected_throughput">Projected Throughput</span>
+                        <span class="info-icon" data-i18n-tooltip="tooltip_prediction_logic">i</span>
+                    </h3>
                     <div class="forecast-value" id="projectedThroughputValue">-</div>
                      <div class="forecast-label" data-i18n="desc_throughput">Commits (Next 60 Days)</div>
                 </div>
