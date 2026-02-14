@@ -13,3 +13,9 @@ exclude = [
 # For sample_repo
 "alice.personal@gmail.com" = "Alice"
 "Bob_Work" = "Bob"
+
+[groups]
+# Define logical groups of users for collective selection in the dashboard
+# Format: "Group Name" = ["User 1", "User 2", ...]
+#"Backend" = ["Alice", "Bob"]
+#"Frontend" = ["Charlie", "Dave"]

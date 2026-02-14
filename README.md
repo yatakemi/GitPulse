@@ -13,9 +13,11 @@
     - **GitHub Reviews**: Comprehensive review analysis: **Reviews Assigned**, **Comments Given (Points made)**, and **Review Lead Time**.
     - **Drill-down Investigation**: Click on any user to see their full commit history, messages, and affected files (NEW!).
     - **User Filtering**: Toggle specific users on/off to analyze subsets of the team. State preserved in URL.
+    - **User Grouping**: Define logical groups (e.g., Teams) for collective selection/deselection (NEW!).
     - **Trends & Forecasts**: 7-day moving average trend lines and **ML-based Velocity Forecasting** (NEW!).
-    - **Heatmaps**: "Punch card" style activity analysis (Hour vs Day).
-    - **Team Health**: Track "Code Churn" (Refactoring/Rework) and "Work Duration" trends.
+    - **Distribution Analysis**: Analyze **Commit Size**, **Response Time**, and **Branch Lead Time** frequencies (NEW!).
+    - **Context Switching**: Track **Directory Diversity** and **Inter-commit Intervals** to gauge fragmentation (NEW!).
+    - **Team Health**: Track "Code Churn" (Refactoring/Rework), "Work Duration", and "Merge Reciprocity".
 - 🎯 **Flexible Metrics**: Switch between Added, Deleted, Total lines, and Commit Count.
 - 🔀 **Merge Commits**: Tracks merge commits (as 0 changes) and calculates **Branch Lead Time** (first commit to merge).
 - 🤝 **User Unification**: Merge duplicate users (e.g., personal vs work email) and automatically handle GitHub noreply addresses.
@@ -99,6 +101,16 @@ base_branches = ["main", "master", "develop"]
 max_lines = 2000        # Exclude commits changing > 2000 lines
 max_files = 50          # Exclude commits changing > 50 files
 ignore_messages = ["refactor", "cleanup", "formatting"] # Exclude if message contains
+
+### User Grouping (NEW!)
+
+Define logical groups of users for collective selection in the dashboard.
+
+```toml
+[groups]
+"Backend Team" = ["Alice", "Bob"]
+"Frontend Team" = ["Charlie", "Dave"]
+```
 ```
 
 **Note:** GitHub noreply emails are **automatically merged** to `username` by default.
@@ -172,12 +184,18 @@ When using the `--github` flag, GitPulse uses GraphQL to provide high-resolution
 
 ### 🔮 Velocity Forecasting (BETA)
 GitPulse analyzes the last 4 weeks of commit velocity to predict future throughput.
-- **Current Velocity**: Average commits per week with a confidence interval.
+- **Current Velocity**: Average commits per week.
 - **Target Goal Estimation**: Set a target commit goal to see an estimated completion date based on your team's current pace.
 - **Trend Analysis**: See if your team is accelerating or slowing down.
 
-### 📈 Initiative Impact Assessment (v0.15+)
-Evaluate the ROI of your process changes (e.g., CI/CD introduction, new review rules). Define an "event" in `gitpulse.toml` to see a before/after comparison:
+### 🧠 Context Switching & Fragmentation (NEW!)
+Understand how multi-tasking and focus time evolve.
+- **Unrelated Switches**: Detects when a developer jumps between unrelated modules in consecutive commits.
+- **Time Fragmentation**: Measures the interval between commits. Short intervals suggest fragmented work (interruptions/meetings).
+- **Deep Work**: Periods of low switches and healthy inter-commit intervals indicate successful deep focus.
+
+### 📉 Initiative Impact Assessment
+Evaluate the ROI of your process changes (e.g., CI/CD introduction, new review rules). Define an "event" in `gitpulse.toml` to see a before/after comparison.
 - **Throughput Change**: Merged PRs/Week (Volume of work).
 - **Process Stability**: Lead Time P50 (Median) vs P90 (Worst case).
 - **Rework Impact**: Changes in Churn and Rework rates.
