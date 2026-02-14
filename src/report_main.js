@@ -1,4 +1,14 @@
 
+function selectAllUsers(shouldSelect) {
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = shouldSelect);
+    if (shouldSelect) {
+        selectedUsers = new Set(allUsers);
+    } else {
+        selectedUsers.clear();
+    }
+    updateDashboard();
+}
+
 function toggleSort(column) {
     if (currentSort.column === column) {
         currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
@@ -93,6 +103,11 @@ function updateDashboard() {
     updatePredictiveDashboard(filteredData);
 
     renderUserCheckboxes(); // Re-render checkboxes to show selection state if needed
+}
+
+function updatePredictionOnly() {
+    syncStateToUrl();
+    updatePredictiveDashboard();
 }
 
 // Initialization and Event Listeners

@@ -92,31 +92,6 @@ function renderUserCheckboxes() {
 
     container.innerHTML = '';
 
-    // "Select All" / "Select None" buttons
-    const btnDiv = document.createElement('div');
-    btnDiv.style.marginBottom = '10px';
-
-    const btnAll = document.createElement('button');
-    btnAll.textContent = t('btn_select_all');
-    btnAll.onclick = () => {
-        document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = true);
-        selectedUsers = new Set(allUsers);
-        updateDashboard();
-    };
-
-    const btnNone = document.createElement('button');
-    btnNone.textContent = t('btn_select_none');
-    btnNone.style.marginLeft = '10px';
-    btnNone.onclick = () => {
-        document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
-        selectedUsers.clear();
-        updateDashboard();
-    };
-
-    btnDiv.appendChild(btnAll);
-    btnDiv.appendChild(btnNone);
-    container.appendChild(btnDiv);
-
     allUsers.forEach(user => {
         const label = document.createElement('label');
         label.style.display = 'block';

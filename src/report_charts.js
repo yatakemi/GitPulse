@@ -1799,20 +1799,20 @@ function updateImpactAssessment(eventIdx) {
     const after = getStats(afterPRs, afterWeeks, false);
 
     const metrics = [
-        { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false },
-        { id: 'metric_commit_density', b: before.commitDensity, a: after.commitDensity, unit: ' commits/week', lowerIsBetter: false },
-        { id: 'metric_commit_size', b: before.avgCommitSize, a: after.avgCommitSize, unit: ' lines/commit', lowerIsBetter: false },
-        { id: 'metric_commit_size_p90', b: before.commitSizeP90, a: after.commitSizeP90, unit: ' lines/commit', lowerIsBetter: false },
-        { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true },
-        { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true },
-        { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true },
-        { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true },
-        { id: 'metric_response_time', b: before.responseTime, a: after.responseTime, unit: 'h', lowerIsBetter: true },
-        { id: 'metric_response_time_p90', b: before.responseTimeP90, a: after.responseTimeP90, unit: 'h', lowerIsBetter: true },
-        { id: 'metric_review_depth', b: before.reviewDepth, a: after.reviewDepth, unit: '', lowerIsBetter: false },
-        { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true },
-        { id: 'metric_test_ratio', b: before.testRatio, a: after.testRatio, unit: '%', lowerIsBetter: false },
-        { id: 'metric_steps', b: before.stepsPerWeek, a: after.stepsPerWeek, unit: ' lines/week', lowerIsBetter: false }
+        { id: 'metric_throughput', b: before.throughput, a: after.throughput, unit: ' PRs/week', lowerIsBetter: false, descr: 'desc_throughput' },
+        { id: 'metric_commit_density', b: before.commitDensity, a: after.commitDensity, unit: ' commits/week', lowerIsBetter: false, descr: 'desc_commit_density' },
+        { id: 'metric_commit_size', b: before.avgCommitSize, a: after.avgCommitSize, unit: ' lines/commit', lowerIsBetter: true, descr: 'desc_commit_size' },
+        { id: 'metric_commit_size_p90', b: before.commitSizeP90, a: after.commitSizeP90, unit: ' lines/commit', lowerIsBetter: true, descr: 'desc_commit_size_p90' },
+        { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true, descr: 'desc_lead_time_p50' },
+        { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true, descr: 'desc_lead_time_p90' },
+        { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true, descr: 'desc_stability' },
+        { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true, descr: 'desc_rework_rate' },
+        { id: 'metric_response_time', b: before.responseTime, a: after.responseTime, unit: 'h', lowerIsBetter: true, descr: 'desc_impact_response_time' },
+        { id: 'metric_response_time_p90', b: before.responseTimeP90, a: after.responseTimeP90, unit: 'h', lowerIsBetter: true, descr: 'desc_impact_response_time_p90' },
+        { id: 'metric_review_depth', b: before.reviewDepth, a: after.reviewDepth, unit: '', lowerIsBetter: false, descr: 'desc_review_depth' },
+        { id: 'metric_iterations', b: before.iterations, a: after.iterations, unit: '', lowerIsBetter: true, descr: 'desc_iterations' },
+        { id: 'metric_test_ratio', b: before.testRatio, a: after.testRatio, unit: '%', lowerIsBetter: false, descr: 'desc_test_ratio' },
+        { id: 'metric_steps', b: before.stepsPerWeek, a: after.stepsPerWeek, unit: ' lines/week', lowerIsBetter: false, descr: 'desc_steps' }
     ];
 
     metrics.forEach(m => {
@@ -1823,7 +1823,10 @@ function updateImpactAssessment(eventIdx) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-                    <td><strong>${t(m.id)}</strong></td>
+                    <td>
+                        <strong data-i18n-tooltip="${m.descr}">${t(m.id)}</strong>
+                        <span class="info-icon" style="font-size: 10px; margin-left: 4px;" data-i18n-tooltip="${m.descr}">i</span>
+                    </td>
                     <td>${m.b.toFixed(2)}${m.unit}</td>
                     <td>${m.a.toFixed(2)}${m.unit}</td>
                     <td style="color: ${statusColor}; font-weight: bold;">${diff > 0 ? '+' : ''}${diff.toFixed(1)}%</td>

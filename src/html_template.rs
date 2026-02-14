@@ -311,7 +311,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <h3 data-i18n="label_est_completion">Completion Estimator</h3>
                     <div class="goal-setter">
                         <label data-i18n="label_remaining_work">Remaining Work:</label>
-                        <input type="number" id="remainingWorkInput" value="0" min="0" onchange="updateDashboard()">
+                        <input type="number" id="remainingWorkInput" value="0" min="0" onchange="updatePredictionOnly()">
                     </div>
                     <div class="forecast-value" id="estCompletionValue">-</div>
                      <div class="forecast-label" id="estCompletionRange"></div>
@@ -322,7 +322,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                      <h3 data-i18n="label_weekly_goal">Goal for next week</h3>
                      <div class="goal-setter">
                         <label data-i18n="label_commit_count">Commit Count</label>: 
-                        <input type="number" id="weeklyGoalInput" value="10" min="1" onchange="updateDashboard()">
+                        <input type="number" id="weeklyGoalInput" value="10" min="1" onchange="updatePredictionOnly()">
                     </div>
                     <div id="commitmentInsight" style="margin-top: 10px; font-size: 13px; color: #555;"></div>
                 </div>
