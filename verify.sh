@@ -52,11 +52,17 @@ fi
 # JavaScript Syntax Check
 echo "🔍 Validating JavaScript syntax..."
 if command -v node > /dev/null; then
-    # Create a temporary version of the JS without Tera templates for syntax checking
-    sed 's/{{.*}}/null/g' ../src/report.js > ../src/report.tmp.js
-    node --check ../src/report.tmp.js
-    rm ../src/report.tmp.js
-    echo "SUCCESS: JavaScript syntax is valid"
+    # Check all JS files
+    for js_file in ../src/*.js; do
+        if [ -f "$js_file" ]; then
+            echo "Checking $js_file..."
+            # Create a temporary version without Tera templates
+            sed 's/{{.*}}/null/g' "$js_file" > "${js_file}.tmp.js"
+            node --check "${js_file}.tmp.js"
+            rm "${js_file}.tmp.js"
+        fi
+    done
+    echo "SUCCESS: JavaScript syntax is valid for all files"
 else
     echo "SKIP: node not found, skipping JS syntax check"
 fi

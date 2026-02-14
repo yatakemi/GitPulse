@@ -36,7 +36,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         .diff.neutral { color: #95a5a6; }
 
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-bottom: 30px; }
-        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; }
+        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; position: relative; }
         .chart-box.full-width { grid-column: 1 / -1; height: 500px; }
         .chart-title { position: relative; margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #34495e; display: flex; align-items: center; gap: 8px; width: 100%; flex-shrink: 0; }
         .chart-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -282,6 +282,58 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
             <div class="user-checkbox-grid" id="userCheckboxes">
                 <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Predictive Analysis Section -->
+        <div class="insights-section" style="margin-bottom: 25px;">
+            <h2>🔮 <span data-i18n="title_predictive_analysis">Predictive Analysis (BETA)</span></h2>
+            
+            <div class="forecast-grid">
+                <!-- Velocity Card -->
+                <div class="forecast-card">
+                    <h3 data-i18n="label_current_velocity">Current Velocity</h3>
+                    <div class="forecast-value" id="currentVelocityValue">-</div>
+                    <div class="forecast-label"><span data-i18n="label_commits">commits</span> / week</div>
+                    <div id="velocityTrendValue" class="forecast-trend">-</div>
+                </div>
+
+                <!-- Projected Throughput Card -->
+                <div class="forecast-card">
+                    <h3 data-i18n="label_projected_throughput">Projected Throughput</h3>
+                    <div class="forecast-value" id="projectedThroughputValue">-</div>
+                     <div class="forecast-label" data-i18n="desc_throughput">Commits (Next 60 Days)</div>
+                </div>
+
+                <!-- Completion Estimator Card -->
+                <div class="forecast-card">
+                    <h3 data-i18n="label_est_completion">Completion Estimator</h3>
+                    <div class="goal-setter">
+                        <label data-i18n="label_remaining_work">Remaining Work:</label>
+                        <input type="number" id="remainingWorkInput" value="0" min="0" onchange="updateDashboard()">
+                    </div>
+                    <div class="forecast-value" id="estCompletionValue">-</div>
+                     <div class="forecast-label" id="estCompletionRange"></div>
+                </div>
+
+                 <!-- Weekly Goal Card -->
+                <div class="forecast-card">
+                     <h3 data-i18n="label_weekly_goal">Goal for next week</h3>
+                     <div class="goal-setter">
+                        <label data-i18n="label_commit_count">Commit Count</label>: 
+                        <input type="number" id="weeklyGoalInput" value="10" min="1" onchange="updateDashboard()">
+                    </div>
+                    <div id="commitmentInsight" style="margin-top: 10px; font-size: 13px; color: #555;"></div>
+                </div>
+            </div>
+
+            <!-- Forecast Chart -->
+            <div class="chart-box full-width">
+                <div class="chart-title">
+                    <span data-i18n="forecast_chart_title">Velocity Forecasting</span>
+                    <span class="info-icon" data-i18n-tooltip="tooltip_prediction_logic" data-tooltip="Forecasts are based on a normal distribution model...">i</span>
+                </div>
+                <canvas id="forecastChart"></canvas>
             </div>
         </div>
 
@@ -598,6 +650,35 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
         </div>
 
+        <!-- Impact Assessment Section -->
+        <div class="chart-box full-width" id="impactSection" style="display: none; height: auto;">
+            <div class="chart-title">
+                <span data-i18n="title_impact_assessment">Initiative Impact Assessment</span>
+                <span class="info-icon" data-i18n-tooltip="tooltip_impact" data-tooltip="Measures the before/after effect of a specific event (e.g., new tool, process change) on key metrics.">i</span>
+                <div class="chart-controls">
+                    <label data-i18n="label_select_initiative" style="font-size: 12px;">Select Initiative:</label>
+                    <select id="eventSelect" onchange="updateImpactAssessment(this.value)"></select>
+                </div>
+            </div>
+            <div id="impactDescription" style="margin-bottom: 20px; color: #555; text-align: center;"></div>
+             <div style="overflow-x: auto;">
+                <table class="user-table" style="font-size: 13px;">
+                    <thead>
+                        <tr>
+                            <th data-i18n="header_metric">Metric</th>
+                            <th data-i18n="header_before">Before</th>
+                            <th data-i18n="header_after">After</th>
+                            <th data-i18n="header_change">Change</th>
+                            <th data-i18n="header_status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="impactTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- User List Section -->
         <div class="card" style="max-width: none; margin-bottom: 30px;">
             <h2 data-i18n="title_user_list" style="font-size: 18px; color: #2c3e50; margin-bottom: 15px; text-align: left;">User Activity Details</h2>
@@ -659,8 +740,29 @@ pub const HTML_TEMPLATE: &str = concat!(
     </div>
 
     <script>
-"#,
-    include_str!("report.js"),
+    const dashboardData = {{ data | json_encode() | safe }};
+    const aliases = {{ aliases | json_encode() | safe }};
+    </script>
+    <script>
+    // Module: Internationalization
+    "#,
+    include_str!("report_i18n.js"),
+    r#"
+    // Module: Globals
+    "#,
+    include_str!("report_globals.js"),
+    r#"
+    // Module: Utilities
+    "#,
+    include_str!("report_utils.js"),
+    r#"
+    // Module: Charts
+    "#,
+    include_str!("report_charts.js"),
+    r#"
+    // Module: Main Logic
+    "#,
+    include_str!("report_main.js"),
     r#"
     </script>
 </body>
