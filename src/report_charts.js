@@ -1915,11 +1915,11 @@ function updateAllChartsWithEvents(showEvents = true) {
             },
             enter(ctx) {
                 ctx.element.options.label.display = true;
-                ctx.chart.draw();
+                ctx.chart.update('none');
             },
             leave(ctx) {
                 ctx.element.options.label.display = false;
-                ctx.chart.draw();
+                ctx.chart.update('none');
             }
         };
     });
