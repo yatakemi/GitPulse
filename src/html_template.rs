@@ -384,7 +384,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div id="estCompletionRange" style="font-size: 12px; color: #7f8c8d; margin-top: 5px;"></div>
                     <div class="goal-setter">
                         <span data-i18n="label_remaining_work">Remaining Work</span>
-                        <input type="number" id="remainingWorkInput" value="100" onchange="updateDashboard()">
+                        <input type="number" id="remainingWorkInput" value="100" onchange="updateCompletionEstimate()">
                         <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>
@@ -393,7 +393,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div id="commitmentInsight" style="font-size: 14px; margin: 10px 0; line-height: 1.6;">-</div>
                     <div class="goal-setter">
                         <span data-i18n="label_weekly_goal">Goal for next week</span>
-                        <input type="number" id="weeklyGoalInput" value="20" onchange="updateDashboard()">
+                        <input type="number" id="weeklyGoalInput" value="20" onchange="updateWeeklyCommitmentForecast()">
                         <span data-i18n="label_commits" style="font-size: 12px; color: #7f8c8d;">commits</span>
                     </div>
                 </div>

@@ -123,6 +123,7 @@
                 forecast_chart_title: "Velocity Forecasting",
                 insight_predicted_goal_title: "Target Forecast",
                 insight_predicted_goal_desc: "You will complete the remaining {remaining} commits by {date}.",
+                tooltip_prediction_logic: "Forecasts are based on a normal distribution model using the historical mean and standard deviation of your weekly commit velocity. The probability indicates the likelihood of achieving the goal, assuming past performance trends continue.",
                 sum_rework_rate: "Rework Rate",
                 sum_review_depth: "Review Depth",
                 sum_response_time: "Avg Response Time",
@@ -420,9 +421,27 @@
         };
 
         let currentLang = 'en';
+        let _currentWeeklyMean, _currentWeeklyStdev, _currentVelocity;
+
+        // Normal Distribution CDF approximation (erf)
+        function normalCDF(x, mean, std) {
+            if (std === 0) return x >= mean ? 1 : 0;
+            const z = (x - mean) / (std * Math.sqrt(2));
+            const t = 1.0 / (1.0 + 0.2316419 * Math.abs(z));
+            const d = 0.3989423 * Math.exp(-z * z);
+            let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+            if (z > 0) p = 1.0 - p;
+            return p;
+        }
 
         function t(key) {
-            return translations[currentLang][key] || key;
+            const keys = key.split('.');
+            let res = translations[currentLang];
+            for (const k of keys) {
+                res = res[k];
+                if (res === undefined) return key;
+            }
+            return res;
         }
 
         function updateLanguage(lang) {
@@ -433,15 +452,16 @@
         }
 
         function applyTranslations() {
-            const lang = currentLang;
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (translations[lang][key]) el.textContent = translations[lang][key];
+                el.textContent = t(key);
             });
-            document.querySelectorAll('[data-tooltip]').forEach(el => {
+            document.querySelectorAll('[data-i18n-tooltip]').forEach(el => {
                  const key = el.getAttribute('data-i18n-tooltip');
-                 if (key && translations[lang][key]) el.setAttribute('data-tooltip', translations[lang][key]);
+                 el.setAttribute('data-tooltip', t(key));
             });
+            // Re-render components that have text generated in JS
+            updateDashboard();
         }
 
         const dashboardData = {{ data | json_encode() | safe }};
@@ -1797,9 +1817,17 @@
 
             const weeklyStats = getWeeklyStats(filteredData);
             if (weeklyStats.length < 2) {
-                ['currentVelocityValue', 'velocityTrendValue', 'projectedThroughputValue', 'estCompletionValue'].forEach(id => document.getElementById(id).textContent = '-');
-                document.getElementById('estCompletionRange').textContent = '';
+                ['currentVelocityValue', 'velocityTrendValue', 'projectedThroughputValue', 'estCompletionValue'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '-';
+                });
+                const rangeEl = document.getElementById('estCompletionRange');
+                if (rangeEl) rangeEl.textContent = '';
                 if (forecastChart) forecastChart.destroy();
+                
+                _currentWeeklyMean = undefined;
+                _currentWeeklyStdev = undefined;
+                _currentVelocity = undefined;
                 return;
             }
 
@@ -1809,34 +1837,64 @@
             const variance = history.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / history.length;
             const stdev = Math.sqrt(variance);
             
-            // Confidence: Lower CoV (Coefficient of Variation) = Higher confidence
+            const last4Weeks = weeklyStats.slice(-4).reverse();
+            const currentVelocity = last4Weeks.length > 0 ? last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length : 0;
+
+            // Use recent (last-4 weeks) standard deviation for short-term probability estimates
+            // (more responsive to recent changes). Fall back to historical stdev when needed.
+            let stdevRecent = stdev;
+            if (last4Weeks.length >= 2) {
+                const meanRecent = last4Weeks.reduce((a, b) => a + b.commits, 0) / last4Weeks.length;
+                const varianceRecent = last4Weeks.reduce((acc, w) => acc + Math.pow(w.commits - meanRecent, 2), 0) / last4Weeks.length;
+                stdevRecent = Math.sqrt(varianceRecent);
+            }
+
+            _currentWeeklyMean = mean; // keep historical mean for reference
+            _currentWeeklyStdev = stdevRecent; // use recent stdev for forecasts
+            _currentVelocity = currentVelocity;
+
             const cov = stdev / (mean || 1);
             const confidence = cov < 0.2 ? 'High' : cov < 0.5 ? 'Medium' : 'Low';
             const confidenceColor = confidence === 'High' ? '#27ae60' : confidence === 'Medium' ? '#f39c12' : '#e74c3c';
-
-            const last4Weeks = weeklyStats.slice(-4).reverse();
-            const currentVelocity = last4Weeks.reduce((acc, w) => acc + w.commits, 0) / last4Weeks.length;
             
-            // Trend
-            const recentAvg = (last4Weeks[0].commits + (last4Weeks[1] ? last4Weeks[1].commits : last4Weeks[0].commits)) / 2;
+            const recentAvg = (last4Weeks.length > 0 ? last4Weeks[0].commits : 0 + (last4Weeks.length > 1 ? last4Weeks[1].commits : (last4Weeks.length > 0 ? last4Weeks[0].commits : 0))) / 2;
             const prevAvg = last4Weeks.length >= 4 
                 ? (last4Weeks[2].commits + last4Weeks[3].commits) / 2
-                : (last4Weeks[2] ? last4Weeks[2].commits : recentAvg);
+                : (last4Weeks.length > 2 ? last4Weeks[2].commits : recentAvg);
             
             const trend = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg) * 100 : 0;
             const trendEl = document.getElementById('velocityTrendValue');
-            trendEl.textContent = `${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend).toFixed(1)}%`;
-            trendEl.className = `forecast-trend ${trend >= 0 ? 'up' : 'down'}`;
+            if (trendEl) {
+                trendEl.textContent = `${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend).toFixed(1)}%`;
+                trendEl.className = `forecast-trend ${trend >= 0 ? 'up' : 'down'}`;
+            }
 
-            document.getElementById('currentVelocityValue').innerHTML = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week <span style="font-size: 12px; color: ${confidenceColor}; font-weight: normal;">(Confidence: ${confidence})</span>`;
+            const velocityEl = document.getElementById('currentVelocityValue');
+            if(velocityEl) velocityEl.innerHTML = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week <span style="font-size: 12px; color: ${confidenceColor}; font-weight: normal;">(Confidence: ${confidence})</span>`;
             
             const projected60 = Math.round(currentVelocity * (60/7));
-            if (document.getElementById('projectedThroughputValue')) document.getElementById('projectedThroughputValue').textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
+            const projectedEl = document.getElementById('projectedThroughputValue');
+            if(projectedEl) projectedEl.textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
 
-            // Goal Estimation (Using REMAINING work directly)
-            const remaining = parseInt(document.getElementById('remainingWorkInput').value) || 0;
+            updateCompletionEstimate();
+            updateWeeklyCommitmentForecast();
             
-            if (remaining > 0 && currentVelocity > 0) {
+            updateForecastChart(weeklyStats, currentVelocity, stdev);
+        }
+
+        function updateCompletionEstimate() {
+            if (_currentVelocity === undefined) return;
+            
+            const remaining = parseInt(document.getElementById('remainingWorkInput').value) || 0;
+            const estEl = document.getElementById('estCompletionValue');
+            const rangeEl = document.getElementById('estCompletionRange');
+            const insightsContainer = document.getElementById('insightsGrid');
+
+            // Clear previous predictive insight
+            const existingInsight = document.getElementById('predictive-insight-card');
+            if (existingInsight) existingInsight.remove();
+
+            if (remaining > 0 && _currentVelocity > 0) {
                 function calcDate(v) {
                     const weeks = remaining / Math.max(v, 0.1);
                     const d = new Date();
@@ -1844,58 +1902,17 @@
                     return d.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric' });
                 }
 
-                const likelyDate = calcDate(currentVelocity);
-                const optimisticDate = calcDate(currentVelocity + stdev);
-                const pessimisticDate = calcDate(Math.max(currentVelocity - stdev, 0.5));
+                const likelyDate = calcDate(_currentVelocity);
+                const optimisticDate = calcDate(_currentVelocity + _currentWeeklyStdev);
+                const pessimisticDate = calcDate(Math.max(_currentVelocity - _currentWeeklyStdev, 0.5));
 
-                if (document.getElementById('estCompletionValue')) document.getElementById('estCompletionValue').textContent = likelyDate;
-                if (document.getElementById('estCompletionRange')) document.getElementById('estCompletionRange').innerHTML = 
-                    `🚀 Optimistic: ${optimisticDate}<br>🐢 Pessimistic: ${pessimisticDate}`;
+                if (estEl) estEl.textContent = likelyDate;
+                if (rangeEl) rangeEl.innerHTML = `🚀 Optimistic: ${optimisticDate}<br>🐢 Pessimistic: ${pessimisticDate}`;
                 
-                // --- Weekly Commitment Forecast ---
-                const weeklyGoal = parseInt(document.getElementById('weeklyGoalInput').value) || 0;
-                
-                // Normal Distribution CDF approximation (erf)
-                function normalCDF(x, mean, std) {
-                    if (std === 0) return x <= mean ? 1 : 0;
-                    const z = (x - mean) / std;
-                    const t = 1.0 / (1.0 + 0.5 * Math.abs(z));
-                    const ans = 1 - t * Math.exp(-z * z - 1.26551223 +
-                        t * (1.00002368 +
-                        t * (0.37409196 +
-                        t * (0.09678418 +
-                        t * (-0.18628806 +
-                        t * (0.27886807 +
-                        t * (-1.13520398 +
-                        t * (1.48851587 +
-                        t * (-0.82215223 +
-                        t * 0.17087277)))))))));
-                    return z >= 0 ? ans : 1 - ans;
-                }
-
-                // Probability of achieving AT LEAST weeklyGoal: P(V >= Goal) = 1 - CDF(Goal)
-                // We shift Goal slightly (-0.5) to include the goal value itself in discrete space
-                let probability = (1 - normalCDF(weeklyGoal - 0.5, mean, stdev)) * 100;
-                if (probability > 99) probability = 99;
-                if (probability < 1) probability = 1;
-
-                // Safe commitment for 90% confidence (P(V >= Z) = 0.9 => Z = mean - 1.28 * stdev)
-                const safeCommitment = Math.max(0, Math.floor(mean - 1.28 * stdev));
-
-                const insightDiv = document.getElementById('commitmentInsight');
-                if (insightDiv) {
-                    insightDiv.innerHTML = t('msg_weekly_forecast')
-                        .replace('{goal}', weeklyGoal)
-                        .replace('{prob}', Math.round(probability)) +
-                        "<br><br>" +
-                        t('msg_safe_commitment').replace('{safe}', safeCommitment);
-                }
-
-                // Add predictive insight
-                const insightsContainer = document.getElementById('insightsGrid');
                 if (insightsContainer) {
                     const card = document.createElement('div');
                     card.className = 'insight-card positive';
+                    card.id = 'predictive-insight-card';
                     card.innerHTML = `
                         <div class="insight-icon">🎯</div>
                         <div class="insight-body">
@@ -1905,13 +1922,38 @@
                     `;
                     insightsContainer.prepend(card);
                 }
-            } else {
-                if (document.getElementById('estCompletionValue')) document.getElementById('estCompletionValue').textContent = remaining <= 0 ? 'Work Complete!' : '-';
-                if (document.getElementById('estCompletionRange')) document.getElementById('estCompletionRange').textContent = '';
-            }
 
-            updateForecastChart(weeklyStats, currentVelocity, stdev);
+            } else {
+                if (estEl) estEl.textContent = remaining <= 0 ? t('status.work_complete') || 'Work Complete!' : '-';
+                if (rangeEl) rangeEl.innerHTML = '';
+            }
         }
+        
+        function updateWeeklyCommitmentForecast() {
+            // Require computed recent velocity
+            if (_currentVelocity === undefined) return;
+
+            const weeklyGoal = parseInt(document.getElementById('weeklyGoalInput').value) || 0;
+
+            // Use the recent velocity (last-4 weeks average) + recent stdev for short-term probability
+            const meanForProb = _currentVelocity;
+            const stdForProb = (_currentWeeklyStdev !== undefined ? _currentWeeklyStdev : 0.0001);
+
+            let probability = (1 - normalCDF(weeklyGoal - 0.5, meanForProb, stdForProb)) * 100;
+            probability = Math.max(0, Math.min(100, probability)); // clamp to [0,100]
+
+            const safeCommitment = Math.max(0, Math.floor(meanForProb - 1.28 * stdForProb));
+
+            const insightDiv = document.getElementById('commitmentInsight');
+            if (insightDiv) {
+                insightDiv.innerHTML = t('msg_weekly_forecast')
+                    .replace('{goal}', weeklyGoal)
+                    .replace('{prob}', Math.round(probability)) +
+                    "<br><br>" +
+                    t('msg_safe_commitment').replace('{safe}', safeCommitment);
+            }
+        }
+
 
         function updateDistributionChart(resTimes, leadTimes) {
             const distBox = document.getElementById('distBox');
