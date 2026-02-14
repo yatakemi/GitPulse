@@ -36,8 +36,8 @@ pub const HTML_TEMPLATE: &str = concat!(
         .diff.neutral { color: #95a5a6; }
 
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 40px; }
-        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; position: relative; overflow: hidden; min-width: 0; }
-        .chart-box.full-width { grid-column: 1 / -1; height: 500px; }
+        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; position: relative; min-width: 0; }
+        .chart-box.full-width, .full-width { grid-column: 1 / -1; height: 500px; }
         .chart-title { position: relative; margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #34495e; display: flex; align-items: center; gap: 8px; width: 100%; flex-shrink: 0; }
         .chart-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
         .chart-controls select { padding: 4px 8px; font-size: 12px; height: auto; }
@@ -548,7 +548,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                 <canvas id="scatterChart"></canvas>
             </div>
             <!-- Distribution Analysis -->
-            <div id="distBox" style="display: none; margin-bottom: 25px;">
+            <div id="distBox" class="full-width" style="display: none; margin-bottom: 25px;">
                 <div class="flex-row" style="margin-bottom: 0;">
                     <div class="chart-box">
                         <div class="chart-title">
