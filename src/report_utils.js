@@ -107,6 +107,7 @@ function renderUserCheckboxes() {
             updateDashboard();
         };
 
+        label.appendChild(cb);
         label.appendChild(document.createTextNode(' ' + user));
         container.appendChild(label);
     });

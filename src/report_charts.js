@@ -408,7 +408,7 @@ function updateSummary(currentData, previousData, metric, startDate, endDate) {
     const metricLabel = metricSelect.options[metricSelect.selectedIndex].text;
     document.getElementById('summaryTitle').textContent = metricLabel;
 
-    document.getElementById('summaryValue').textContent = (currentTotal || 0).toLocaleString();
+    document.getElementById('summaryValue').textContent = (metric === 'lead_time' ? '-' : (currentTotal || 0).toLocaleString());
     document.getElementById('mergeCommitsValue').textContent = (totalMerges || 0).toLocaleString();
     document.getElementById('churnRateValue').textContent = `${churnRate}%`;
     document.getElementById('activeDaysValue').textContent = activeDays || 0;
@@ -417,7 +417,7 @@ function updateSummary(currentData, previousData, metric, startDate, endDate) {
     // Update Summary Diff
     const diffEl = document.getElementById('summaryDiff');
     if (diffEl) {
-        if (prevTotal > 0) {
+        if (metric !== 'lead_time' && prevTotal > 0) {
             const diffPercent = ((currentTotal - prevTotal) / prevTotal) * 100;
             const sign = diffPercent >= 0 ? '+' : '';
             diffEl.textContent = `${sign}${diffPercent.toFixed(1)}% ${t('diff_prev')}`;
@@ -1005,7 +1005,7 @@ function updateVelocitySizeChart(startDate, endDate) {
     }
 
     // data contains aggregated DailyStat with total_changes and commit_count
-    data.forEach(d => {
+    data.filter(d => selectedUsers.has(d.author)).forEach(d => {
         if (dateMap.has(d.dateStr)) {
             const entry = dateMap.get(d.dateStr);
             entry.commits += d.commit_count;

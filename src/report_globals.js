@@ -9,6 +9,7 @@ const data = dashboardData.daily_stats.map(d => {
     const dateObj = new Date(d.date);
     return {
         ...d,
+        author: normalizeAuthor(d.author),
         dateObj: dateObj,
         dateStr: d.date,
         dayOfWeek: dateObj.getDay(),
