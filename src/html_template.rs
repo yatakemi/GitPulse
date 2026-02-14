@@ -55,15 +55,15 @@ pub const HTML_TEMPLATE: &str = concat!(
         .info-icon:hover { background: #3498db; }
         .info-icon:hover::after {
             content: attr(data-tooltip);
-            position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 50%; left: 100%; transform: translateY(-50%);
             background: #34495e; color: white; padding: 8px 12px; border-radius: 6px;
             font-size: 12px; font-weight: 400; white-space: pre-wrap; width: 250px; text-align: left;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; margin-top: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; margin-left: 10px;
             line-height: 1.4;
         }
         .info-icon:hover::before {
-            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px; margin-top: 3px;
-            border-width: 5px; border-style: solid; border-color: transparent transparent #34495e transparent;
+            content: ''; position: absolute; top: 50%; left: 100%; margin-top: -5px;
+            border-width: 5px; border-style: solid; border-color: transparent #34495e transparent transparent;
         }
 
         /* Insight Cards */
@@ -288,6 +288,36 @@ pub const HTML_TEMPLATE: &str = concat!(
             </div>
         </div>
 
+        <!-- Timeline moved after User Selection -->
+        <div class="chart-box full-width" style="margin-bottom: 25px;">
+            <div class="chart-title">
+                <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
+                <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
+                <div class="chart-controls">
+                    <div class="control-group" style="font-size: 12px;">
+                        <label data-i18n="metric">Metric:</label>
+                        <select id="metricSelect" onchange="updateDashboard()">
+                            <option value="total_changes" data-i18n="metric_total">Total Changes</option>
+                            <option value="added" data-i18n="metric_added">Added Lines</option>
+                            <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
+                            <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
+                            <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
+                            <option value="lead_time" data-i18n="metric_lead_time">Lead Time (Days)</option>
+                        </select>
+                    </div>
+                    <select id="chartTypeSelect" onchange="updateDashboard()">
+                        <option value="line" data-i18n="chart_line">Line Chart</option>
+                        <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
+                    </select>
+                    <div class="control-group" style="font-size: 12px; margin-left: 10px;">
+                        <input type="checkbox" id="showTrend" onchange="updateDashboard()">
+                        <label for="showTrend" data-i18n="trend">7-Day Trend</label>
+                    </div>
+                </div>
+            </div>
+            <canvas id="productivityChart"></canvas>
+        </div>
+
         <!-- Predictive Analysis Section -->
         <div class="insights-section" style="margin-bottom: 25px;">
             <h2>🔮 <span data-i18n="title_predictive_analysis">Predictive Analysis (BETA)</span></h2>
@@ -349,34 +379,6 @@ pub const HTML_TEMPLATE: &str = concat!(
 
         <!-- File Type Analysis Section -->
         <div class="charts-grid">
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
-                    <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
-                    <div class="chart-controls">
-                        <div class="control-group" style="font-size: 12px;">
-                            <label data-i18n="metric">Metric:</label>
-                            <select id="metricSelect" onchange="updateDashboard()">
-                                <option value="total_changes" data-i18n="metric_total">Total Changes</option>
-                                <option value="added" data-i18n="metric_added">Added Lines</option>
-                                <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
-                                <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
-                                <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
-                                <option value="lead_time" data-i18n="metric_lead_time">Lead Time (Days)</option>
-                            </select>
-                        </div>
-                        <select id="chartTypeSelect" onchange="updateDashboard()">
-                            <option value="line" data-i18n="chart_line">Line Chart</option>
-                            <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
-                        </select>
-                        <div class="control-group" style="font-size: 12px; margin-left: 10px;">
-                            <input type="checkbox" id="showTrend" onchange="updateDashboard()">
-                            <label for="showTrend" data-i18n="trend">7-Day Trend</label>
-                        </div>
-                    </div>
-                </div>
-                <canvas id="productivityChart"></canvas>
-            </div>
 
             <!-- Overview: File Type Share & Details (moved up) -->
             <div class="chart-box">
