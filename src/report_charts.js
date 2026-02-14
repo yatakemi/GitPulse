@@ -1822,7 +1822,7 @@ function updateImpactAssessment(eventIdx) {
         { id: 'metric_commit_density', b: before.commitDensity, a: after.commitDensity, unit: ' commits/week', lowerIsBetter: false, descr: 'desc_commit_density' },
         { id: 'metric_commit_size', b: before.avgCommitSize, a: after.avgCommitSize, unit: ' lines/commit', lowerIsBetter: true, descr: 'desc_commit_size' },
         { id: 'metric_commit_size_p90', b: before.commitSizeP90, a: after.commitSizeP90, unit: ' lines/commit', lowerIsBetter: true, descr: 'desc_commit_size_p90' },
-        { id: 'metric_lead_time_p50', b: before.median, a: after.median, unit: ' days', lowerIsBetter: true, descr: 'desc_lead_time_p50' },
+        { id: 'metric_lead_time_avg', b: before.avg, a: after.avg, unit: ' days', lowerIsBetter: true, descr: 'desc_lead_time_avg' },
         { id: 'metric_lead_time_p90', b: before.p90, a: after.p90, unit: ' days', lowerIsBetter: true, descr: 'desc_lead_time_p90' },
         { id: 'metric_stability', b: before.stdDev, a: after.stdDev, unit: '', lowerIsBetter: true, descr: 'desc_stability' },
         { id: 'metric_rework_rate', b: before.reworkRate, a: after.reworkRate, unit: '%', lowerIsBetter: true, descr: 'desc_rework_rate' },
