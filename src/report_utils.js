@@ -107,8 +107,29 @@ function renderUserCheckboxes() {
             updateDashboard();
         };
 
-        label.appendChild(cb);
         label.appendChild(document.createTextNode(' ' + user));
         container.appendChild(label);
     });
+}
+
+/**
+ * Standard debounce function to limit the rate at which a function can fire.
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Helper to yield execution back to the main thread, allowing the UI to remain responsive.
+ */
+function yieldToMain() {
+    return new Promise(resolve => setTimeout(resolve, 0));
 }

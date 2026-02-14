@@ -58,12 +58,24 @@ function loadStateFromUrl() {
     }
 }
 
-function updateDashboard() {
+const _updateDashboardDebounced = debounce(_updateDashboardInternal, 250);
+
+function updateDashboard(immediate = false) {
+    if (immediate === true) {
+        _updateDashboardInternal();
+    } else {
+        _updateDashboardDebounced();
+    }
+}
+
+async function _updateDashboardInternal() {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     const metric = document.getElementById('metricSelect').value;
     const chartType = document.getElementById('chartTypeSelect').value;
     const showTrend = document.getElementById('showTrend').checked;
+
+    if (!startDate || !endDate) return;
 
     syncStateToUrl();
 
@@ -72,42 +84,55 @@ function updateDashboard() {
         d.dateStr >= startDate && d.dateStr <= endDate && selectedUsers.has(d.author)
     );
 
-    // 1. Update Charts
+    // 1. High Priority: Summary and Primary Chart
     updateSummary(filteredData, metric, startDate, endDate);
     updateTimelineChart(filteredData, metric, chartType, showTrend, startDate, endDate);
+
+    await yieldToMain();
+
+    // 2. Secondary Priority: Core Charts
     updatePieChart(filteredData, metric);
     updateDayOfWeekChart(filteredData, metric);
     updateHeatmapChart(filteredData, metric);
     updateSizeDistChart(filteredData);
     updateWorkDurationChart(filteredData);
     updateHealthTrendChart(filteredData, startDate, endDate);
+
+    await yieldToMain();
+
+    // 3. Background: Ownership, Multi-author analysis, and Lead Time
     updateOwnershipChart(filteredData, startDate, endDate);
     updateIsolatedFilesTable(filteredData);
     updateLeadTimeChart(filteredData, startDate, endDate);
-    // updateLeadTimeTrendChart(startDate, endDate); // Removed/Merged into Timeline
-    updateFileTypeChart(startDate, endDate); // Uses raw commits internally
+    updateFileTypeChart(startDate, endDate);
     updateFileTypeTrendChart(startDate, endDate);
-    updateVelocitySizeChart(startDate, endDate);
+
+    await yieldToMain();
+
+    // 4. GitHub Specifics and Context Switching
     updateReviewActivityChart(startDate, endDate);
     updateGitHubAdvancedMetrics(startDate, endDate);
     updateContextSwitchChart(filteredData, startDate, endDate);
     updateContextSwitchTrendChart(filteredData, startDate, endDate);
     updateFragmentationChart(filteredData, startDate, endDate);
 
-    // 2. Update Impact Assessment (pass undefined to use current selection)
-    updateImpactAssessment(undefined);
+    await yieldToMain();
 
-    // 3. Update Text-based Sections
+    // 5. Impact, Insights and Predictions
+    updateImpactAssessment(undefined);
     updateUserList(filteredData);
     generateInsights(filteredData, startDate, endDate);
     updatePredictiveDashboard(filteredData);
-
-    renderUserCheckboxes(); // Re-render checkboxes to show selection state if needed
+    updateVelocitySizeChart(startDate, endDate);
 }
 
-function updatePredictionOnly() {
+const _debouncedUpdatePredictionOnly = debounce(() => {
     syncStateToUrl();
     updatePredictiveDashboard();
+}, 100);
+
+function updatePredictionOnly() {
+    _debouncedUpdatePredictionOnly();
 }
 
 // Initialization and Event Listeners
@@ -124,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadStateFromUrl();
     renderUserCheckboxes();
-    updateDashboard();
+    updateDashboard(true);
 
     // Setup other event listeners if they are not inline
     // (Most are inline in HTML: onchange="updateDashboard()")
