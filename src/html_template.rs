@@ -214,10 +214,12 @@ pub const HTML_TEMPLATE: &str = concat!(
         </div>
 
         <div class="summary-cards">
-             <div class="card">
                 <h3 id="summaryTitle" data-i18n="sum_total">Total</h3>
                 <div class="value" id="summaryValue">-</div>
                 <div class="diff" id="summaryDiff">-</div>
+                <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
+                    <span data-i18n="sum_avg">Avg / Day</span>: <span id="avgPerDayValue">-</span>
+                </div>
             </div>
             <div class="card">
                 <h3 data-i18n="sum_merge">Merge Commits</h3>
@@ -230,10 +232,6 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div class="card">
                 <h3 data-i18n="sum_active">Active Days</h3>
                 <div class="value" id="activeDaysValue">-</div>
-            </div>
-            <div class="card">
-                <h3 data-i18n="sum_avg">Avg / Day</h3>
-                <div class="value" id="avgPerDayValue">-</div>
             </div>
         </div>
 
@@ -297,6 +295,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                     <div class="forecast-value" id="currentVelocityValue">-</div>
                     <div class="forecast-label"><span data-i18n="label_commits">commits</span> / week</div>
                     <div id="velocityTrendValue" class="forecast-trend">-</div>
+                    <div id="velocityHistory" class="forecast-history" style="margin-top: 10px; display: flex; justify-content: center; gap: 5px; height: 40px; align-items: flex-end;"></div>
                 </div>
 
                 <!-- Projected Throughput Card -->

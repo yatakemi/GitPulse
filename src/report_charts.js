@@ -1331,6 +1331,25 @@ function updatePredictiveDashboard(filteredData) {
     const velocityEl = document.getElementById('currentVelocityValue');
     if (velocityEl) velocityEl.innerHTML = `${currentVelocity.toFixed(1)} ${t('label_commits')}/week <span style="font-size: 12px; color: ${confidenceColor}; font-weight: normal;">(Confidence: ${confidence})</span>`;
 
+    // Populate Velocity History (last 4 weeks)
+    const historyEl = document.getElementById('velocityHistory');
+    if (historyEl) {
+        historyEl.innerHTML = '';
+        const recentWeeks = weeklyStats.slice(-4); // oldest to newest
+        recentWeeks.forEach(w => {
+            const bar = document.createElement('div');
+            bar.title = `${w.week_start}: ${w.commits} commits`;
+            bar.style.width = '20px';
+            // Use historical mean as 100% height (capped or scaled)
+            const height = Math.min(40, (w.commits / (mean || 1)) * 20);
+            bar.style.height = Math.max(2, height) + 'px';
+            bar.style.backgroundColor = '#3498db88';
+            bar.style.borderRadius = '2px';
+            bar.setAttribute('data-tooltip', `${w.week_start}: ${w.commits} commits`);
+            historyEl.appendChild(bar);
+        });
+    }
+
     const projected60 = Math.round(currentVelocity * (60 / 7));
     const projectedEl = document.getElementById('projectedThroughputValue');
     if (projectedEl) projectedEl.textContent = `${projected60.toLocaleString()} ${t('label_commits')}`;
@@ -1824,8 +1843,8 @@ function updateImpactAssessment(eventIdx) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
                     <td>
-                        <strong data-i18n-tooltip="${m.descr}">${t(m.id)}</strong>
-                        <span class="info-icon" style="font-size: 10px; margin-left: 4px;" data-i18n-tooltip="${m.descr}">i</span>
+                        <strong data-tooltip="${t(m.descr)}">${t(m.id)}</strong>
+                        <span class="info-icon" style="font-size: 10px; margin-left: 4px;" data-tooltip="${t(m.descr)}">i</span>
                     </td>
                     <td>${m.b.toFixed(2)}${m.unit}</td>
                     <td>${m.a.toFixed(2)}${m.unit}</td>
