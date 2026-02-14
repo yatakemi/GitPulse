@@ -214,6 +214,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         </div>
 
         <div class="summary-cards">
+            <div class="card">
                 <h3 id="summaryTitle" data-i18n="sum_total">Total</h3>
                 <div class="value" id="summaryValue">-</div>
                 <div class="diff" id="summaryDiff">-</div>
@@ -224,14 +225,14 @@ pub const HTML_TEMPLATE: &str = concat!(
             <div class="card">
                 <h3 data-i18n="sum_merge">Merge Commits</h3>
                 <div class="value" id="mergeCommitsValue">-</div>
-             </div>
-             <div class="card">
+            </div>
+            <div class="card">
                 <h3 style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <span data-i18n="sum_churn">Churn Rate</span>
                     <span class="info-icon" data-i18n-tooltip="tooltip_churn_rate">i</span>
                 </h3>
                 <div class="value" id="churnRateValue">-</div>
-             </div>
+            </div>
             <div class="card">
                 <h3 data-i18n="sum_active">Active Days</h3>
                 <div class="value" id="activeDaysValue">-</div>
