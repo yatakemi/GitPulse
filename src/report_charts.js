@@ -761,6 +761,51 @@ function updateOwnershipChart(filteredData, startDate, endDate) {
     }
 }
 
+function updateIsolatedFilesTable(filteredData) {
+    const tableBody = document.getElementById('isolatedFilesTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    const filteredAuthors = new Set(filteredData.map(d => d.author));
+    const fileAuthorMap = {};
+
+    dashboardData.file_stats.forEach(fs => {
+        if (filteredAuthors.has(fs.author)) {
+            const fName = filePaths[fs.file_idx] || fs.file_idx;
+            if (!fileAuthorMap[fName]) fileAuthorMap[fName] = new Set();
+            fileAuthorMap[fName].add(fs.author);
+        }
+    });
+
+    const isolatedFiles = [];
+    Object.entries(fileAuthorMap).forEach(([file, authors]) => {
+        if (authors.size === 1) {
+            const author = [...authors][0];
+            const totalModifications = dashboardData.file_stats
+                .filter(fs => {
+                    const mappedFile = filePaths[fs.file_idx] || fs.file_idx;
+                    return mappedFile === file && fs.author === author;
+                })
+                .reduce((sum, fs) => sum + fs.count, 0);
+
+            isolatedFiles.push({ file, author, count: totalModifications });
+        }
+    });
+
+    isolatedFiles.sort((a, b) => b.count - a.count);
+
+    isolatedFiles.slice(0, 30).forEach(item => {
+        const row = document.createElement('tr');
+        const color = stringToColor(item.author);
+        row.innerHTML = `
+            <td>${item.file}</td>
+            <td><span class="user-badge" style="background-color: ${color}33; color: ${color}; border: 1px solid ${color}">${item.author}</span></td>
+            <td>${item.count}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
 function updateLeadTimeChart(filteredData, startDate, endDate) {
     const allFilteredMerges = dashboardData.merge_events
         .filter(me => me.date >= startDate && me.date <= endDate)

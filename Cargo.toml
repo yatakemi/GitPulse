@@ -1,6 +1,6 @@
 [package]
 name = "gitpulse"
-version = "0.13.110"
+version = "0.13.111"
 edition = "2024"
 
 [dependencies]
