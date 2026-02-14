@@ -426,10 +426,66 @@ function updateTimelineChart(filteredData, metric, chartType, showTrend, startDa
     while (curr <= end && safety < 730) {
         const dStr = curr.toISOString().split('T')[0];
         displayDates.push(dStr);
-        dateMap.set(dStr, {});
+        // Initialize based on metric type
+        if (metric === 'lead_time') {
+            dateMap.set(dStr, { 'Average': 0, _count: 0 }); // Special structure for average
+        } else {
+            dateMap.set(dStr, {});
+        }
         curr.setDate(curr.getDate() + 1);
         safety++;
     }
+
+    if (metric === 'lead_time') {
+        const stats = dashboardData.daily_lead_time_stats || [];
+        stats.forEach(s => {
+            if (dateMap.has(s.date)) {
+                // For lead time, we map 'Average' as the key to simplify reuse of logic or just hardcode dataset
+                dateMap.get(s.date)['Average'] = s.avg_days;
+            }
+        });
+
+        // For lead time, we just show one dataset (Average)
+        const datasets = [{
+            label: 'Average Lead Time',
+            data: displayDates.map(date => dateMap.get(date)['Average'] || 0),
+            fill: chartType === 'bar',
+            borderColor: '#27ae60',
+            backgroundColor: '#27ae6033',
+            tension: 0.1,
+            borderWidth: chartType === 'bar' ? 0 : 2
+        }];
+
+        if (showTrend) {
+            datasets.push({
+                label: '7-Day Trend',
+                data: calculateMovingAverage(datasets[0].data, 7),
+                borderColor: '#2ecc71',
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0
+            });
+        }
+
+        if (mainChart) mainChart.destroy();
+        if (ctx) {
+            mainChart = new Chart(ctx, {
+                type: chartType,
+                data: { labels: displayDates, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: chartType === 'bar' },
+                        y: { stacked: chartType === 'bar', beginAtZero: true, title: { display: true, text: 'Days' } }
+                    }
+                }
+            });
+        }
+        return;
+    }
+
+    // Default behavior for other metrics (User based)
     filteredData.forEach(d => {
         if (!dateMap.has(d.dateStr)) return;
         const daily = dateMap.get(d.dateStr);

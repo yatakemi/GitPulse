@@ -17,13 +17,13 @@ pub const HTML_TEMPLATE: &str = concat!(
         
         .controls { 
             background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-            margin-bottom: 25px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; 
+            margin-bottom: 40px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; 
         }
         .control-group { display: flex; align-items: center; gap: 8px; font-weight: 500; }
         select, input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
         select:focus, input:focus { border-color: #3498db; }
         
-        .summary-cards { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+        .summary-cards { display: flex; justify-content: center; gap: 25px; margin-bottom: 40px; flex-wrap: wrap; }
         .card { 
             background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
             text-align: center; min-width: 180px; flex: 1; max-width: 250px;
@@ -35,14 +35,15 @@ pub const HTML_TEMPLATE: &str = concat!(
         .diff.negative { color: #e74c3c; }
         .diff.neutral { color: #95a5a6; }
 
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-bottom: 30px; }
-        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; position: relative; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 40px; }
+        .chart-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 450px; display: flex; flex-direction: column; position: relative; overflow: hidden; min-width: 0; }
         .chart-box.full-width { grid-column: 1 / -1; height: 500px; }
         .chart-title { position: relative; margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #34495e; display: flex; align-items: center; gap: 8px; width: 100%; flex-shrink: 0; }
         .chart-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
         .chart-controls select { padding: 4px 8px; font-size: 12px; height: auto; }
+        .chart-box canvas { flex: 1; min-height: 0; max-width: 100%; }
         
-        .flex-row { display: flex; gap: 25px; flex-wrap: wrap; margin-bottom: 25px; }
+        .flex-row { display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 40px; }
         .flex-row .chart-box { flex: 1; min-width: 450px; }
         
         /* Tooltip Styles */
@@ -66,7 +67,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         }
 
         /* Insight Cards */
-        .insights-section { margin-bottom: 25px; }
+        .insights-section { margin-bottom: 40px; }
         .insights-section h2 { font-size: 18px; color: #2c3e50; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         .insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; }
         .insight-card {
@@ -138,7 +139,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         /* User Selection Styles */
         .user-selection-area {
             background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-            margin-bottom: 25px;
+            margin-bottom: 40px;
         }
         .user-selection-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
@@ -167,7 +168,7 @@ pub const HTML_TEMPLATE: &str = concat!(
         /* Forecast Styles */
         .forecast-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px; margin-bottom: 25px;
+            gap: 20px; margin-bottom: 40px;
         }
         .forecast-card {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -352,6 +353,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                                 <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
                                 <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
                                 <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
+                                <option value="lead_time" data-i18n="metric_lead_time">Lead Time (Days)</option>
                             </select>
                         </div>
                         <select id="chartTypeSelect" onchange="updateDashboard()">
@@ -396,62 +398,7 @@ pub const HTML_TEMPLATE: &str = concat!(
                 </div>
             </div>
             </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_lead_time_trend">Lead Time Trend (Time Series)</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_lead_time_trend" data-tooltip="Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.">i</span>
-                </div>
-                <canvas id="leadTimeTrendChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_file_type_trend">File Type Activity Trend</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_file_type_trend" data-tooltip="Shows the time-series change of lines added per file type (especially 'test'). Use this to track if testing activity increases after certain initiatives.">i</span>
-                </div>
-                <canvas id="fileTypeTrendChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_velocity_size_correlation">Commit Velocity vs. Size Trend</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_velocity_size" data-tooltip="Correlates commit frequency with commit size. \n\nInsights:\n1. Style Shift: If commits increase while size decreases, the team is moving towards 'Atomic Commits'.\n2. Real Productivity: If both increase, the actual delivery volume is growing.\n3. Risk: Large size with low frequency often indicates high-risk PRs that are hard to review.">i</span>
-                </div>
-                <canvas id="velocitySizeChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">
-                    <span data-i18n="chart_share">User Share</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_share" data-tooltip="Distribution of contributions. Helps identify 'Bus Factor' (reliance on single dev). A highly skewed chart suggests high risk if the top contributor is unavailable.">i</span>
-                </div>
-                <canvas id="shareChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">
-                    <span data-i18n="chart_dow">Day of Week Activity</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_dow" data-tooltip="Weekly rhythm. Most teams peak Tue-Thu. High weekend activity might indicate crunch time, unhealthy work habits, or upcoming release pressure.">i</span>
-                </div>
-                <canvas id="dayOfWeekChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_heatmap">Activity Heatmap (Hour vs Day)</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_heatmap" data-tooltip="Identifies core working hours. Look for clusters outside normal hours (e.g. late nights), which suggests overtime or burnout risk. Inconsistent heatmaps might indicate lack of overlapping hours for collaboration.">i</span>
-                </div>
-                <canvas id="heatmapChart"></canvas>
-            </div>
-             <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_size">Commit Size Distribution</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_size" data-tooltip="Breakdown of commit sizes. XS: 10行未満, S: 10-50行, M: 50-200行, L: 200-500行, XL: 500行以上。「XS」「S」が理想的（アトミックなコミット）です。「XL」が多すぎる場合は、レビューが困難でバグが混入しやすい巨大な変更を示唤します。">i</span>
-                </div>
-                <canvas id="sizeDistChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_duration">Est. Daily Work Duration</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_duration" data-tooltip="その日の最初と最後のコミット間の時間です。注：実際の労働時間ではありませんが活動の幅を示します。8時間超が続く場合はバーンアウトのリスクに注意が必要です。">i</span>
-                </div>
-                <canvas id="workDurationChart"></canvas>
-            </div>
+
 
         <div class="insights-section" id="insightsContainer">
             <h2>💡 <span data-i18n="insights_title">Insights</span></h2>
@@ -459,40 +406,8 @@ pub const HTML_TEMPLATE: &str = concat!(
         </div>
 
         <div class="charts-grid">
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span id="timelineTitleText" data-i18n="chart_timeline">Timeline</span> 
-                    <span class="info-icon" data-i18n-tooltip="tooltip_timeline" data-tooltip="Shows activity trends over time. Look for spikes (sprints/releases) or gaps (blockers/downtime). Ideally, activity should be consistent. Spike in deletions might indicate cleanup/refactoring.">i</span>
-                    <div class="chart-controls">
-                        <div class="control-group" style="font-size: 12px;">
-                            <label data-i18n="metric">Metric:</label>
-                            <select id="metricSelect" onchange="updateDashboard()">
-                                <option value="total_changes" data-i18n="metric_total">Total Changes</option>
-                                <option value="added" data-i18n="metric_added">Added Lines</option>
-                                <option value="deleted" data-i18n="metric_deleted">Deleted Lines</option>
-                                <option value="commit_count" data-i18n="metric_commits">Commit Count</option>
-                                <option value="churn" data-i18n="metric_churn">Code Churn (Volatility)</option>
-                            </select>
-                        </div>
-                        <select id="chartTypeSelect" onchange="updateDashboard()">
-                            <option value="line" data-i18n="chart_line">Line Chart</option>
-                            <option value="bar" data-i18n="chart_bar">Stacked Bar</option>
-                        </select>
-                        <div class="control-group" style="font-size: 12px; margin-left: 10px;">
-                            <input type="checkbox" id="showTrend" onchange="updateDashboard()">
-                            <label for="showTrend" data-i18n="trend">7-Day Trend</label>
-                        </div>
-                    </div>
-                </div>
-                <canvas id="productivityChart"></canvas>
-            </div>
-            <div class="chart-box full-width">
-                <div class="chart-title">
-                    <span data-i18n="chart_lead_time_trend">Lead Time Trend (Time Series)</span>
-                    <span class="info-icon" data-i18n-tooltip="tooltip_lead_time_trend" data-tooltip="Shows the daily average branch lead time over time. Lower is better. Spikes indicate periods where branches stayed open longer.">i</span>
-                </div>
-                <canvas id="leadTimeTrendChart"></canvas>
-            </div>
+
+
             <div class="chart-box full-width">
                 <div class="chart-title">
                     <span data-i18n="chart_file_type_trend">File Type Activity Trend</span>

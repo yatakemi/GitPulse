@@ -73,7 +73,7 @@ function updateDashboard() {
     updateHealthTrendChart(filteredData, startDate, endDate);
     updateOwnershipChart(filteredData, startDate, endDate);
     updateLeadTimeChart(filteredData, startDate, endDate);
-    updateLeadTimeTrendChart(startDate, endDate);
+    // updateLeadTimeTrendChart(startDate, endDate); // Removed/Merged into Timeline
     updateFileTypeChart(startDate, endDate); // Uses raw commits internally
     updateFileTypeTrendChart(startDate, endDate);
     updateVelocitySizeChart(startDate, endDate);
